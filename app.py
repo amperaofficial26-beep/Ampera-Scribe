@@ -14,7 +14,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, HRFlowable
 
-st.set_page_config(page_title="AI Dokumen", page_icon="📄", layout="wide")
+st.set_page_config(page_title="Ampera Scribe", page_icon="💬", layout="centered")
 
 # ---------- Konfigurasi ----------
 # Provider gratis (format OpenAI-compatible). Dicoba berurutan; key disimpan di Streamlit Secrets.
@@ -313,86 +313,146 @@ def build_pdf(d):
 
 
 # ---------- UI ----------
-st.title("📄 AI Pembuat Dokumen")
+CSS = """
+<style>
+.block-container {padding-top: 2rem; max-width: 900px;}
+div[data-testid="stChatMessage"] {background: rgba(128,128,128,.07); border-radius: 14px; padding: .6rem .9rem;}
+.go-btn button {width: 100%; height: 3.2rem; font-size: 1.15rem; font-weight: 700; border-radius: 14px;}
+.hint {opacity:.65; font-size:.88rem;}
+</style>
+"""
+st.markdown(CSS, unsafe_allow_html=True)
 
+ss = st.session_state
+ss.setdefault("chat", [])       # [{"role": "user"/"assistant", "text": str}]
+ss.setdefault("ready", False)
+for k in ("judul", "pembuka", "isi", "penutup"):
+    ss.setdefault(k, "")
+
+# ================= SIDEBAR: semua pengaturan =================
 with st.sidebar:
-    st.header("Kop surat")
-    kop_name = st.text_input("Nama instansi / organisasi")
-    kop_addr = st.text_area("Alamat", height=70)
-    kop_contact = st.text_input("Telp / email / website")
-    logo = st.file_uploader("Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+    st.markdown("## ⚙️ Pengaturan dokumen")
 
-    st.header("Layout")
-    paper = st.selectbox("Ukuran kertas", list(PAPER))
-    mx = st.slider("Margin kiri-kanan (cm)", 1.0, 4.0, 2.5, 0.1)
-    my = st.slider("Margin atas-bawah (cm)", 1.5, 4.0, 2.5, 0.1)
-    font = st.selectbox("Font", list(FONTS))
-    size = st.slider("Ukuran font", 9, 16, 12)
-    spacing = st.slider("Spasi baris", 1.0, 2.0, 1.15, 0.05)
-    align = st.selectbox("Perataan teks", list(ALIGN))
-    pagefmt = st.selectbox("Nomor halaman", list(PAGE_FMT), index=3)
-    pagepos = st.selectbox("Posisi nomor halaman", POS, index=1)
+    with st.expander("📑 Jenis & gaya", expanded=True):
+        doc_type = st.selectbox("Jenis dokumen", DOC_TYPES)
+        tone = st.selectbox("Gaya bahasa", ["Formal", "Semi-formal", "Ringkas dan padat"])
+        length = st.selectbox("Target panjang", ["1 halaman", "2 halaman", "3 halaman atau lebih"])
+        kota = st.text_input("Kota", "Jakarta")
+        tanggal = st.date_input("Tanggal", datetime.date.today())
 
-c1, c2 = st.columns(2)
-with c1:
-    doc_type = st.selectbox("Jenis dokumen", DOC_TYPES)
-    tone = st.selectbox("Gaya bahasa", ["Formal", "Semi-formal", "Ringkas dan padat"])
-    length = st.selectbox("Target panjang", ["1 halaman", "2 halaman", "3 halaman atau lebih"])
-with c2:
-    kota = st.text_input("Kota", "Jakarta")
-    tanggal = st.date_input("Tanggal", datetime.date.today())
+    is_surat = doc_type in SURAT
+    nomor = lampiran = perihal = tujuan = ""
+    if is_surat:
+        with st.expander("✉️ Detail surat", expanded=True):
+            nomor = st.text_input("Nomor surat")
+            lampiran = st.text_input("Lampiran")
+            perihal = st.text_input("Perihal (kosong = otomatis)")
+            tujuan = st.text_input("Ditujukan kepada")
 
-is_surat = doc_type in SURAT
-if is_surat:
-    a, b = st.columns(2)
-    nomor = a.text_input("Nomor surat"); lampiran = b.text_input("Lampiran")
-    perihal = a.text_input("Perihal (kosongkan = otomatis dari AI)")
-    tujuan = b.text_input("Ditujukan kepada")
+    with st.expander("🏛️ Kop surat"):
+        kop_name = st.text_input("Nama instansi / organisasi")
+        kop_addr = st.text_area("Alamat", height=70)
+        kop_contact = st.text_input("Telp / email / website")
+        logo = st.file_uploader("Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
 
-brief = st.text_area("Isi / bahan dokumen (poin, catatan, detail acara, dll.)", height=160)
+    with st.expander("📐 Layout & format"):
+        paper = st.selectbox("Ukuran kertas", list(PAPER))
+        mx = st.slider("Margin kiri-kanan (cm)", 1.0, 4.0, 2.5, 0.1)
+        my = st.slider("Margin atas-bawah (cm)", 1.5, 4.0, 2.5, 0.1)
+        font = st.selectbox("Font", list(FONTS))
+        size = st.slider("Ukuran font", 9, 16, 12)
+        spacing = st.slider("Spasi baris", 1.0, 2.0, 1.15, 0.05)
+        align = st.selectbox("Perataan teks", list(ALIGN))
+        pagefmt = st.selectbox("Nomor halaman", list(PAGE_FMT), index=3)
+        pagepos = st.selectbox("Posisi nomor halaman", POS, index=1)
 
-with st.expander("Tanda tangan"):
-    s1, s2 = st.columns(2)
-    jabatan = s1.text_input("Jabatan penandatangan")
-    nama = s2.text_input("Nama penandatangan")
-    nip = s1.text_input("NIP / info tambahan (opsional)")
-    sign_pos = s2.selectbox("Posisi tanda tangan", POS, index=2)
-    sign_img = st.file_uploader("Gambar tanda tangan / stempel (opsional)", type=["png", "jpg", "jpeg"])
+    with st.expander("✍️ Tanda tangan"):
+        jabatan = st.text_input("Jabatan penandatangan")
+        nama = st.text_input("Nama penandatangan")
+        nip = st.text_input("NIP / info tambahan")
+        sign_pos = st.selectbox("Posisi tanda tangan", POS, index=2)
+        sign_img = st.file_uploader("Gambar TTD / stempel", type=["png", "jpg", "jpeg"])
 
-if st.button("✨ Buat dokumen", type="primary", disabled=not brief.strip()):
-    with st.spinner("AI sedang menulis..."):
+    st.divider()
+    if st.button("🧹 Mulai obrolan baru", use_container_width=True):
+        ss.chat = []
+        ss.ready = False
+        for k in ("judul", "pembuka", "isi", "penutup"):
+            ss[k] = ""
+        st.rerun()
+
+# ================= HALAMAN UTAMA: ruang chat =================
+st.title("💬 Ampera Scribe")
+st.caption("Ceritakan dokumen yang kamu butuhkan di kolom chat, atur formatnya di sidebar, "
+           "lalu tekan tombol di bawah.")
+
+if not ss.chat:
+    with st.chat_message("assistant", avatar="📄"):
+        st.markdown(
+            f"Halo! Aku siap membuat **{doc_type}** untukmu.\n\n"
+            "Tulis saja bahannya di kolom chat bawah — poin acara, nama, tanggal, maksud surat, apa pun. "
+            "Kalau sudah cukup, klik **let's go!! Buat file nya**."
+        )
+
+for m in ss.chat:
+    with st.chat_message(m["role"], avatar="🧑" if m["role"] == "user" else "📄"):
+        st.markdown(m["text"])
+
+if msg := st.chat_input("Tulis bahan dokumen atau permintaan revisi..."):
+    ss.chat.append({"role": "user", "text": msg})
+    ss.chat.append({"role": "assistant", "text": "Oke, sudah kucatat ✅ Tambah detail lagi, atau langsung tekan **let's go!! Buat file nya**."})
+    st.rerun()
+
+brief = "\n".join(m["text"] for m in ss.chat if m["role"] == "user").strip()
+
+st.markdown('<div class="go-btn">', unsafe_allow_html=True)
+go = st.button("🚀 let's go!! Buat file nya", type="primary", disabled=not brief, use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
+if not brief:
+    st.markdown('<p class="hint">Tulis dulu bahan dokumennya di kolom chat untuk mengaktifkan tombol.</p>',
+                unsafe_allow_html=True)
+
+if go:
+    with st.spinner("AI sedang menulis dokumenmu..."):
         try:
             res, used = generate(doc_type, brief, tone, length)
-            for key in ("judul", "pembuka", "isi", "penutup"):
-                st.session_state[key] = str(res.get(key, ""))
-            st.session_state["ready"] = True
-            st.caption(f"Dibuat dengan {used}")
+            for k in ("judul", "pembuka", "isi", "penutup"):
+                ss[k] = str(res.get(k, ""))
+            ss.ready = True
+            ss.chat.append({"role": "assistant",
+                            "text": f"Selesai! **{ss['judul'] or doc_type}** sudah jadi (via {used}). "
+                                    "Cek dan edit hasilnya di bawah, lalu unduh Word atau PDF."})
+            st.rerun()
         except Exception as e:
             st.error(f"Gagal: {e}")
 
-if st.session_state.get("ready"):
-    st.subheader("Edit hasil")
-    st.text_input("Judul", key="judul")
-    st.text_area("Pembuka", key="pembuka", height=100)
-    st.text_area("Isi (paragraf dipisah baris kosong, '# ' sub-judul, '- ' butir)", key="isi", height=260)
-    st.text_area("Penutup", key="penutup", height=80)
+# ================= Hasil =================
+if ss.ready:
+    st.divider()
+    st.subheader("📝 Hasil dokumen")
+    with st.expander("Edit teks dokumen", expanded=True):
+        st.text_input("Judul", key="judul")
+        st.text_area("Pembuka", key="pembuka", height=100)
+        st.text_area("Isi (paragraf dipisah baris kosong, '# ' sub-judul, '- ' butir)", key="isi", height=260)
+        st.text_area("Penutup", key="penutup", height=80)
 
     kt = f"{kota}, {tgl(tanggal)}"
     d = {
         "cfg": dict(paper=paper, mx=mx, my=my, font=font, size=size, spacing=spacing, align=align,
                     pagefmt=pagefmt, pagepos=pagepos),
         "kop": dict(name=kop_name, addr=kop_addr, contact=kop_contact, logo=logo.getvalue() if logo else None),
-        "meta": dict(kota_tgl=kt, nomor=nomor, lampiran=lampiran, perihal=perihal or st.session_state["judul"],
+        "meta": dict(kota_tgl=kt, nomor=nomor, lampiran=lampiran, perihal=perihal or ss["judul"],
                      tujuan=tujuan) if is_surat else None,
         "sign": dict(jabatan=jabatan, nama=nama, nip=nip, pos=sign_pos, kota_tgl=kt,
                      img=sign_img.getvalue() if sign_img else None),
-        "judul": st.session_state["judul"], "pembuka": st.session_state["pembuka"],
-        "isi": st.session_state["isi"], "penutup": st.session_state["penutup"],
+        "judul": ss["judul"], "pembuka": ss["pembuka"], "isi": ss["isi"], "penutup": ss["penutup"],
     }
     try:
         d1, d2 = st.columns(2)
         d1.download_button("⬇️ Unduh Word (.docx)", build_docx(d), "dokumen.docx",
-                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        d2.download_button("⬇️ Unduh PDF", build_pdf(d), "dokumen.pdf", "application/pdf")
+                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                           use_container_width=True)
+        d2.download_button("⬇️ Unduh PDF", build_pdf(d), "dokumen.pdf", "application/pdf",
+                           use_container_width=True)
     except Exception as e:
         st.error(f"Gagal membuat file: {e}")
