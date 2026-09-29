@@ -20,7 +20,7 @@ st.set_page_config(page_title="AI Dokumen", page_icon="📄", layout="wide")
 # Provider gratis (format OpenAI-compatible). Dicoba berurutan; key disimpan di Streamlit Secrets.
 PROVIDERS = [
     ("Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "GROQ_API_KEY"),
-    ("Plugsky", "", "", "PLUGSKY_API_KEY"),  # base URL & model diisi lewat Secrets
+    ("Plugsky", "https://plugsky.com/v1", "plugsky-lite", "PLUGSKY_API_KEY"),  # bisa ditimpa lewat Secrets
 ]
 PAPER = {"A4": (21, 29.7), "Letter": (21.59, 27.94), "Legal": (21.59, 35.56)}
 FONTS = {"Times New Roman": ("Times-Roman", "Times-Bold"), "Arial": ("Helvetica", "Helvetica-Bold"),
@@ -78,8 +78,8 @@ def generate(doc_type, brief, tone, length):
     last = None
     for name, url, model, key in PROVIDERS:
         k = secret(key)
-        url = url or secret(key.replace("API_KEY", "BASE_URL"))
-        model = model or secret(key.replace("API_KEY", "MODEL"))
+        url = secret(key.replace("API_KEY", "BASE_URL")) or url
+        model = secret(key.replace("API_KEY", "MODEL")) or model
         if not (k and url and model):
             continue
         try:
