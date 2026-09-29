@@ -20,7 +20,7 @@ st.set_page_config(page_title="AI Dokumen", page_icon="📄", layout="wide")
 # Provider gratis (format OpenAI-compatible). Dicoba berurutan; key disimpan di Streamlit Secrets.
 PROVIDERS = [
     ("Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "GROQ_API_KEY"),
-    ("OpenRouter", "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free", "OPENROUTER_API_KEY"),
+    ("Groq Vision", "https://api.groq.com/openai/v1", "meta-llama/llama-4-scout-17b-16e-instruct", "GROQ_API_KEY"),
 ]
 PAPER = {"A4": (21, 29.7), "Letter": (21.59, 27.94), "Legal": (21.59, 35.56)}
 FONTS = {"Times New Roman": ("Times-Roman", "Times-Bold"), "Arial": ("Helvetica", "Helvetica-Bold"),
