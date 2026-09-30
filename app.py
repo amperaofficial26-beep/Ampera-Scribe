@@ -154,15 +154,13 @@ def inject_glassliquid_theme():
         }
 
         .block-container > div {
-            border: 1px solid var(--amp-border-soft);
-            border-radius: 34px;
-            padding: clamp(1.1rem, 2vw, 1.85rem);
-            background:
-                linear-gradient(140deg, rgba(255,255,255,.105), rgba(255,255,255,.035) 48%, rgba(255,255,255,.070)),
-                linear-gradient(180deg, rgba(6,8,14,.78), rgba(3,3,6,.64));
-            backdrop-filter: blur(28px) saturate(1.35);
-            -webkit-backdrop-filter: blur(28px) saturate(1.35);
-            box-shadow: var(--amp-shadow), inset 0 1px 0 rgba(255,255,255,.16);
+            border: 0 !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
         }
 
         [data-testid="stSidebar"] {
@@ -440,10 +438,14 @@ def inject_glassliquid_theme():
             color: var(--amp-text) !important;
         }
 
-        iframe {
+        iframe,
+        [data-testid="stHtml"],
+        [data-testid="stHtml"] > div,
+        [data-testid="stElementContainer"]:has(.liquid-centerpiece) {
             border: 0 !important;
             box-shadow: none !important;
             background: transparent !important;
+            outline: 0 !important;
         }
 
         hr {
@@ -454,8 +456,8 @@ def inject_glassliquid_theme():
 
         @media (max-width: 640px) {
             .block-container > div {
-                padding: 1rem;
-                border-radius: 24px;
+                padding: 0 !important;
+                border-radius: 0 !important;
             }
             .app-hero {
                 border-radius: 24px;
@@ -1026,7 +1028,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.iframe(LIQUID_CENTERPIECE, height=360)
+st.html(LIQUID_CENTERPIECE.read_text(encoding="utf-8"), unsafe_allow_javascript=True)
 
 cta_cols = st.columns([1, 1.2, 1])
 with cta_cols[1]:
