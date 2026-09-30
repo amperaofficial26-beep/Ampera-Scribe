@@ -33,6 +33,7 @@ POS = ["Kiri", "Tengah", "Kanan"]
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
          "September", "Oktober", "November", "Desember"]
 SIGN_W = 7  # lebar blok tanda tangan (cm)
+APP_VER = "v3 - parser AI tahan banting"
 
 
 def secret(k):
@@ -67,9 +68,82 @@ def blocks(text):
 
 
 # ---------- AI ----------
+KEYS = ("judul", "pembuka", "isi", "penutup")
+
+
+def _json_blob(txt):
+    """Ambil objek JSON pertama yang kurung kurawalnya seimbang (abaikan ```fence```)."""
+    txt = re.sub(r"```[a-zA-Z]*", "", txt or "").replace("```", "")
+    start = txt.find("{")
+    while start != -1:
+        depth, in_str, esc_ch = 0, False, False
+        for i in range(start, len(txt)):
+            c = txt[i]
+            if in_str:
+                if esc_ch:
+                    esc_ch = False
+                elif c == "\\":
+                    esc_ch = True
+                elif c == '"':
+                    in_str = False
+            elif c == '"':
+                in_str = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    return txt[start:i + 1]
+        start = txt.find("{", start + 1)
+    return None
+
+
+def _from_text(txt):
+    """Fallback: model balas teks biasa -> pecah jadi judul/pembuka/isi/penutup."""
+    t = (txt or "").strip()
+    if not t:
+        return None
+    par = [p.strip() for p in re.split(r"\n\s*\n", t) if p.strip()]
+    judul = ""
+    if par and len(par[0]) < 120 and "\n" not in par[0]:
+        judul = par.pop(0).lstrip("# ").strip()
+    pembuka = par.pop(0) if par else ""
+    penutup = par.pop() if len(par) > 1 else ""
+    return {"judul": judul, "pembuka": pembuka, "isi": "\n\n".join(par), "penutup": penutup}
+
+
+def _normalize(data):
+    out = {}
+    for k in KEYS:
+        v = data.get(k, "")
+        if isinstance(v, list):
+            v = "\n\n".join(map(str, v))
+        elif isinstance(v, dict):
+            v = "\n\n".join(f"# {a}\n{b}" for a, b in v.items())
+        out[k] = str(v or "")
+    return out
+
+
+def _parse(raw):
+    blob = _json_blob(raw)
+    if blob:
+        try:
+            data = json.loads(blob)
+            if isinstance(data, dict) and any(k in data for k in KEYS):
+                return _normalize(data)
+        except json.JSONDecodeError:
+            pass
+    data = _from_text(raw)
+    if data:
+        return _normalize(data)
+    raise ValueError("balasan AI kosong / tidak bisa dibaca")
+
+
 def generate(doc_type, brief, tone, length, tpl_nama="", outline=None):
-    sys_msg = ("Kamu penulis dokumen profesional berbahasa Indonesia. Balas HANYA JSON valid: "
+    sys_msg = ("Kamu penulis dokumen profesional berbahasa Indonesia. Balas HANYA JSON valid "
+               "tanpa teks lain, tanpa blok kode: "
                '{"judul":"","pembuka":"","isi":"","penutup":""}. '
+               'Keempat nilai harus berupa string. '
                'Di "isi", pisahkan paragraf dengan baris kosong; awali sub-judul dengan "# " '
                'dan butir daftar dengan "- ". Jangan mengarang nama, angka, atau tanggal yang tidak diberikan. '
                "Jangan sertakan salam tanda tangan/nama penulis di penutup.")
@@ -80,24 +154,39 @@ def generate(doc_type, brief, tone, length, tpl_nama="", outline=None):
                + "\n".join(f"{i}. {s}" for i, s in enumerate(outline, 1)) + "\n")
     usr = (f"Jenis dokumen: {doc_type}\nTemplate: {tpl_nama or doc_type}\n"
            f"Gaya bahasa: {tone}\nPanjang: {length}\n{ker}\nBahan:\n{brief}")
-    last = None
+    msgs = [{"role": "system", "content": sys_msg}, {"role": "user", "content": usr}]
+
+    errors, skipped = [], []
     for name, url, model, key in PROVIDERS:
         k = secret(key)
         url = secret(key.replace("API_KEY", "BASE_URL")) or url
         model = secret(key.replace("API_KEY", "MODEL")) or model
         if not (k and url and model):
+            skipped.append(name)
+            continue
+        client = OpenAI(base_url=url, api_key=k, timeout=120, max_retries=1)
+        raw = None
+        # percobaan 1: JSON mode; percobaan 2: tanpa JSON mode (provider lama)
+        for kw in ({"response_format": {"type": "json_object"}}, {}):
+            try:
+                r = client.chat.completions.create(model=model, temperature=0.4, messages=msgs, **kw)
+                raw = (r.choices[0].message.content or "").strip()
+                break
+            except Exception as e:
+                err = f"{type(e).__name__}: {e}"
+                if not kw:
+                    errors.append(f"{name} ({model}) - {err}")
+        if raw is None:
             continue
         try:
-            r = OpenAI(base_url=url, api_key=k).chat.completions.create(
-                model=model, temperature=0.4,
-                messages=[{"role": "system", "content": sys_msg}, {"role": "user", "content": usr}])
-            data = json.loads(re.search(r"\{.*\}", r.choices[0].message.content, re.S).group(0))
-            if isinstance(data.get("isi"), list):
-                data["isi"] = "\n\n".join(map(str, data["isi"]))
-            return data, name
+            return _parse(raw), name
         except Exception as e:
-            last = f"{name}: {e}"
-    raise RuntimeError(last or "Belum ada API key. Isi GROQ_API_KEY di Streamlit Secrets.")
+            errors.append(f"{name} ({model}) - {e}. Cuplikan balasan: {raw[:120]!r}")
+
+    if not errors:
+        raise RuntimeError("Belum ada API key aktif. Isi GROQ_API_KEY di Streamlit Secrets "
+                           f"(provider yang dilewati: {', '.join(skipped) or '-'}).")
+    raise RuntimeError("Semua provider gagal:\n- " + "\n- ".join(errors))
 
 
 # ---------- Word ----------
@@ -343,6 +432,7 @@ def reset_doc():
 # ================= SIDEBAR: semua pengaturan =================
 with st.sidebar:
     st.markdown("## ⚙️ Pengaturan dokumen")
+    st.caption(f"Ampera Scribe {APP_VER}")
 
     # --- Langkah 1: jenis file ---
     st.markdown("**Langkah 1 — Jenis file**")
