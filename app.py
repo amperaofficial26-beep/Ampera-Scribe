@@ -438,10 +438,14 @@ def inject_glassliquid_theme():
             color: var(--amp-text) !important;
         }
 
-        iframe {
+        iframe,
+        [data-testid="stHtml"],
+        [data-testid="stHtml"] > div,
+        [data-testid="stElementContainer"]:has(.liquid-centerpiece) {
             border: 0 !important;
             box-shadow: none !important;
             background: transparent !important;
+            outline: 0 !important;
         }
 
         hr {

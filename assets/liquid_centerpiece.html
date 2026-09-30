@@ -1,11 +1,14 @@
 <style>
   .liquid-centerpiece {
     position: relative;
-    width: 100%;
-    height: clamp(220px, 30vw, 360px);
+    width: min(100%, 720px);
+    height: clamp(220px, 30vw, 340px);
     margin: 0 auto 1rem;
     overflow: visible;
+    isolation: isolate;
     background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
   }
 
   .liquid-centerpiece canvas {
@@ -15,6 +18,7 @@
     height: 100%;
     display: block;
     background: transparent !important;
+    mix-blend-mode: screen;
   }
 
   .liquid-logo-error {
@@ -38,6 +42,7 @@ const cv = root.querySelector('canvas');
 const gl = cv.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
 if (!gl) { root.querySelector('.liquid-logo-error').style.display = 'grid'; }
 else {
+gl.clearColor(0, 0, 0, 0);
 const vs = 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
 const fs = `
 precision highp float;
@@ -112,7 +117,9 @@ void main(){
   vec3 outc = gc * glow;
 
   float mask = smoothstep(.006, -.006, d);
-  float alpha = clamp(mask + glow * .75, 0., 1.);
+  float aura = smoothstep(.025, .22, glow);
+  float alpha = clamp(mask + aura * .82, 0., 1.);
+  if (alpha < .01) discard;
   gl_FragColor = vec4(mix(outc, col, mask), alpha);
 }`;
 function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
@@ -201,6 +208,7 @@ function state(t){
 const t0 = performance.now();
 (function frame(){
   const t = (performance.now() - t0) / 1000;
+  gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform2f(uR, cv.width, cv.height);
   gl.uniform1f(uT, t);
   const st = state(t);
