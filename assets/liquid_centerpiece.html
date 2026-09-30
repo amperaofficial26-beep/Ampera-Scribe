@@ -1,24 +1,48 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bola Cairan → Huruf A</title>
 <style>
-  :root { --bg: transparent; }
-  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: transparent; }
-  #err { position: fixed; inset: 0; display: none; place-items: center; color: #cfd3ff; font: 16px system-ui, sans-serif; text-align: center; padding: 24px; }
+  .liquid-centerpiece {
+    position: relative;
+    width: min(100%, 720px);
+    height: clamp(220px, 30vw, 340px);
+    margin: 0 auto 1rem;
+    overflow: visible;
+    isolation: isolate;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .liquid-centerpiece canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: transparent !important;
+    mix-blend-mode: screen;
+  }
+
+  .liquid-logo-error {
+    position: absolute;
+    inset: 0;
+    display: none;
+    place-items: center;
+    color: #cfd3ff;
+    font: 16px system-ui, sans-serif;
+    text-align: center;
+    padding: 24px;
+  }
 </style>
-</head>
-<body>
-<canvas id="c" aria-label="Bola cairan warna-warni yang berubah menjadi huruf A"></canvas>
-<div id="err">Browser ini tidak mendukung WebGL, jadi animasi tidak bisa ditampilkan.</div>
-<script>
-const cv = document.getElementById('c');
+<div class="liquid-centerpiece">
+  <canvas aria-label="Bola cairan warna-warni yang berubah menjadi huruf A"></canvas>
+  <div class="liquid-logo-error">Browser ini tidak mendukung WebGL, jadi animasi tidak bisa ditampilkan.</div>
+  <script>
+  (() => {
+const root = document.currentScript.parentElement;
+const cv = root.querySelector('canvas');
 const gl = cv.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
-if (!gl) { document.getElementById('err').style.display = 'grid'; }
+if (!gl) { root.querySelector('.liquid-logo-error').style.display = 'grid'; }
 else {
+gl.clearColor(0, 0, 0, 0);
 const vs = 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
 const fs = `
 precision highp float;
@@ -93,7 +117,9 @@ void main(){
   vec3 outc = gc * glow;
 
   float mask = smoothstep(.006, -.006, d);
-  float alpha = clamp(mask + glow * .75, 0., 1.);
+  float aura = smoothstep(.025, .22, glow);
+  float alpha = clamp(mask + aura * .82, 0., 1.);
+  if (alpha < .01) discard;
   gl_FragColor = vec4(mix(outc, col, mask), alpha);
 }`;
 function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
@@ -158,7 +184,8 @@ function resize(){
   cv.height = Math.round(cv.clientHeight * dpr);
   gl.viewport(0, 0, cv.width, cv.height);
 }
-addEventListener('resize', resize); resize();
+const ro = new ResizeObserver(resize); ro.observe(root);
+window.addEventListener('resize', resize); resize();
 
 // siklus: bulat 5 dtk → berubah 2 dtk → tahap A 10,5 dtk → berubah 2 dtk
 // tahap A: A saja 2 dtk, teks keluar 2 dtk, teks tampil 4 dtk, teks masuk lagi 2 dtk, A saja 0,5 dtk
@@ -181,15 +208,17 @@ function state(t){
 const t0 = performance.now();
 (function frame(){
   const t = (performance.now() - t0) / 1000;
+  gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform2f(uR, cv.width, cv.height);
   gl.uniform1f(uT, t);
   const st = state(t);
   gl.uniform1f(uM, st[0]);
   gl.uniform1f(uE, st[1]);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  if (!root.isConnected) return;
   requestAnimationFrame(frame);
 })();
 }
-</script>
-</body>
-</html>
+  })();
+  </script>
+</div>
