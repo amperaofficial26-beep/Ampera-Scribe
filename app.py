@@ -1,4 +1,6 @@
 import os, re, json, datetime
+from pathlib import Path
+
 import streamlit as st
 from openai import OpenAI
 
@@ -17,6 +19,8 @@ PROVIDERS = [
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
          "September", "Oktober", "November", "Desember"]
 APP_VER = f"v6 - {TPL.JUMLAH} template contoh nyata + terjemahan"
+BASE_DIR = Path(__file__).resolve().parent
+LIQUID_CENTERPIECE = BASE_DIR / "assets" / "liquid_centerpiece.html"
 
 # ---------- Tema UI: Liquid Glass ----------
 def inject_glassliquid_theme():
@@ -482,7 +486,6 @@ def mat_download_button(label, data, file_name, mime, icon, **kwargs):
         if "icon" not in str(e):
             raise
         return st.download_button(label, data, file_name, mime, **kwargs)
-
 
 
 def secret(k):
@@ -1026,20 +1029,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.markdown(
-    f"""
-    <div class="app-hero">
-        <div class="app-hero-badge">
-            <span class="material-symbols-rounded">edit_note</span>
-            <span class="amp-muted">{APP_VER}</span>
-        </div>
-        <h1>Ampera Scribe</h1>
-        <p>{TPL.JUMLAH} template dari contoh surat nyata pada {len(JENIS)} jenis dokumen.
-        Buat, rapikan, terjemahkan, lalu unduh dokumen resmi dalam tampilan liquid glass.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.iframe(LIQUID_CENTERPIECE, height=560)
 
 for m in ss.chat:
     with st.chat_message(m["role"]):
