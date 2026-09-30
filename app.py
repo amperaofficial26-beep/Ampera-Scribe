@@ -1028,7 +1028,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.html(LIQUID_CENTERPIECE.read_text(encoding="utf-8"), unsafe_allow_javascript=True)
+st.iframe(LIQUID_CENTERPIECE, height=340)
 
 cta_cols = st.columns([1, 1.2, 1])
 with cta_cols[1]:
