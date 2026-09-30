@@ -7,7 +7,7 @@ from templates import TEMPLATES, JENIS, get as get_tpl, brief_from_fields, opsi
 from render import (build_docx, build_pdf, build_html, parse_list, parse_table,
                     PAPER, FONTS, PAGE_FMT, ALIGN, POS)
 
-st.set_page_config(page_title="Ampera Scribe", page_icon="💬", layout="centered")
+st.set_page_config(page_title="Ampera Scribe", layout="centered")
 
 # ---------- Konfigurasi ----------
 PROVIDERS = [
@@ -17,6 +17,472 @@ PROVIDERS = [
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
          "September", "Oktober", "November", "Desember"]
 APP_VER = f"v6 - {TPL.JUMLAH} template contoh nyata + terjemahan"
+
+# ---------- Tema UI: Liquid Glass ----------
+def inject_glassliquid_theme():
+    """Suntikkan gaya visual glass-liquid, latar hitam bertekstur, dan glow animasi."""
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200&display=swap');
+
+        :root {
+            --amp-bg: #030303;
+            --amp-bg-2: #08080d;
+            --amp-glass: rgba(255, 255, 255, 0.075);
+            --amp-glass-strong: rgba(255, 255, 255, 0.14);
+            --amp-border: rgba(255, 255, 255, 0.22);
+            --amp-border-soft: rgba(255, 255, 255, 0.11);
+            --amp-text: #f7f7fb;
+            --amp-muted: rgba(247, 247, 251, 0.70);
+            --amp-blue: #7dd3fc;
+            --amp-cyan: #22d3ee;
+            --amp-violet: #a78bfa;
+            --amp-pink: #fb7185;
+            --amp-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+        }
+
+        html, body, [data-testid="stAppViewContainer"], .stApp {
+            color: var(--amp-text) !important;
+            background: transparent !important;
+        }
+
+        .stApp {
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-color: var(--amp-bg) !important;
+            background-image:
+                radial-gradient(circle at 14% 22%, rgba(255,255,255,.055) 0 1px, transparent 1px 5px),
+                radial-gradient(circle at 84% 18%, rgba(255,255,255,.040) 0 1px, transparent 1px 4px),
+                radial-gradient(circle at 32% 82%, rgba(255,255,255,.030) 0 1px, transparent 1px 6px),
+                repeating-linear-gradient(115deg, rgba(255,255,255,.028) 0 1px, transparent 1px 7px),
+                linear-gradient(180deg, #020203 0%, #050507 46%, #020203 100%) !important;
+            background-attachment: fixed !important;
+        }
+
+        .stApp::before {
+            content: "";
+            position: fixed;
+            left: -22vw;
+            right: -22vw;
+            bottom: -42vh;
+            height: 82vh;
+            pointer-events: none;
+            z-index: 0;
+            opacity: .82;
+            filter: blur(36px) saturate(1.45) hue-rotate(0deg);
+            mix-blend-mode: screen;
+            transform-origin: 50% 100%;
+            background:
+                conic-gradient(from 178deg at 50% 100%,
+                    rgba(34, 211, 238, 0.00) 0deg,
+                    rgba(34, 211, 238, 0.36) 18deg,
+                    rgba(125, 211, 252, 0.05) 42deg,
+                    rgba(167, 139, 250, 0.32) 66deg,
+                    rgba(251, 113, 133, 0.08) 88deg,
+                    rgba(34, 211, 238, 0.00) 118deg,
+                    rgba(251, 113, 133, 0.34) 150deg,
+                    rgba(167, 139, 250, 0.16) 178deg,
+                    rgba(34, 211, 238, 0.00) 220deg,
+                    rgba(34, 211, 238, 0.28) 252deg,
+                    rgba(34, 211, 238, 0.00) 300deg),
+                radial-gradient(ellipse at 50% 100%, rgba(34, 211, 238, 0.40) 0%, rgba(167, 139, 250, 0.18) 35%, transparent 68%);
+            animation: amperaGlow 18s ease-in-out infinite alternate;
+        }
+
+        .stApp::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: .18;
+            mix-blend-mode: overlay;
+            background-image:
+                radial-gradient(circle at 12% 18%, rgba(255,255,255,.35) 0 .7px, transparent .8px),
+                radial-gradient(circle at 78% 34%, rgba(255,255,255,.25) 0 .6px, transparent .7px),
+                radial-gradient(circle at 44% 72%, rgba(255,255,255,.22) 0 .8px, transparent .9px),
+                linear-gradient(100deg, transparent 0 48%, rgba(255,255,255,.04) 49% 50%, transparent 51% 100%);
+            background-size: 11px 11px, 17px 17px, 23px 23px, 41px 41px;
+        }
+
+        @keyframes amperaGlow {
+            0% {
+                transform: translate3d(-2%, 0, 0) scaleX(1) scaleY(.95);
+                filter: blur(36px) saturate(1.45) hue-rotate(0deg);
+                opacity: .70;
+            }
+            33% {
+                transform: translate3d(2%, -4vh, 0) scaleX(1.08) scaleY(1.05);
+                filter: blur(42px) saturate(1.65) hue-rotate(92deg);
+                opacity: .86;
+            }
+            66% {
+                transform: translate3d(-1%, -8vh, 0) scaleX(.96) scaleY(1.12);
+                filter: blur(40px) saturate(1.8) hue-rotate(196deg);
+                opacity: .78;
+            }
+            100% {
+                transform: translate3d(2%, -2vh, 0) scaleX(1.12) scaleY(1.02);
+                filter: blur(38px) saturate(1.55) hue-rotate(315deg);
+                opacity: .88;
+            }
+        }
+
+        [data-testid="stAppViewContainer"],
+        [data-testid="stSidebar"],
+        [data-testid="stHeader"],
+        [data-testid="stToolbar"],
+        [data-testid="stDecoration"],
+        .main, .block-container {
+            position: relative;
+            z-index: 1;
+        }
+
+        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+            background: transparent !important;
+        }
+
+        .block-container {
+            max-width: 1120px;
+            padding-top: 2.1rem !important;
+            padding-bottom: 3.2rem !important;
+        }
+
+        .block-container > div {
+            border: 1px solid var(--amp-border-soft);
+            border-radius: 34px;
+            padding: clamp(1.1rem, 2vw, 1.85rem);
+            background:
+                linear-gradient(140deg, rgba(255,255,255,.105), rgba(255,255,255,.035) 48%, rgba(255,255,255,.070)),
+                linear-gradient(180deg, rgba(6,8,14,.78), rgba(3,3,6,.64));
+            backdrop-filter: blur(28px) saturate(1.35);
+            -webkit-backdrop-filter: blur(28px) saturate(1.35);
+            box-shadow: var(--amp-shadow), inset 0 1px 0 rgba(255,255,255,.16);
+        }
+
+        [data-testid="stSidebar"] {
+            background:
+                linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
+                rgba(4,4,8,.72) !important;
+            border-right: 1px solid var(--amp-border-soft);
+            box-shadow: 24px 0 70px rgba(0, 0, 0, .40), inset -1px 0 0 rgba(255,255,255,.06);
+            backdrop-filter: blur(30px) saturate(1.35);
+            -webkit-backdrop-filter: blur(30px) saturate(1.35);
+        }
+
+        [data-testid="stSidebar"] > div,
+        [data-testid="stSidebarContent"] {
+            background: transparent !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
+        [data-testid="stExpander"] {
+            border: 1px solid rgba(255,255,255,.12) !important;
+            border-radius: 22px !important;
+            background: linear-gradient(145deg, rgba(255,255,255,.085), rgba(255,255,255,.028)) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 16px 45px rgba(0,0,0,.22);
+            overflow: hidden;
+        }
+
+        [data-testid="stExpander"] summary {
+            color: var(--amp-text) !important;
+            font-weight: 700 !important;
+            letter-spacing: .01em;
+        }
+
+        h1, h2, h3, h4, h5, h6,
+        p, span, label, div, li,
+        [data-testid="stMarkdownContainer"],
+        [data-testid="stWidgetLabel"],
+        [data-testid="stCaptionContainer"] {
+            color: var(--amp-text);
+        }
+
+        [data-testid="stCaptionContainer"],
+        small, .amp-muted {
+            color: var(--amp-muted) !important;
+        }
+
+        .material-symbols-rounded {
+            font-family: 'Material Symbols Rounded';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 1.25rem;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .app-hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 32px;
+            border: 1px solid rgba(255,255,255,.18);
+            padding: clamp(1.25rem, 3vw, 2.1rem);
+            margin-bottom: 1.2rem;
+            background:
+                radial-gradient(circle at 16% 0%, rgba(125,211,252,.20), transparent 34%),
+                radial-gradient(circle at 95% 12%, rgba(251,113,133,.16), transparent 36%),
+                linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.045) 58%, rgba(255,255,255,.09));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 22px 70px rgba(0,0,0,.35);
+        }
+
+        .app-hero::after {
+            content: "";
+            position: absolute;
+            width: 42%;
+            height: 1px;
+            left: 9%;
+            top: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
+            opacity: .75;
+        }
+
+        .app-hero-badge,
+        .section-heading,
+        .result-heading {
+            display: flex;
+            align-items: center;
+            gap: .72rem;
+        }
+
+        .app-hero-badge .material-symbols-rounded,
+        .section-heading .material-symbols-rounded,
+        .result-heading .material-symbols-rounded {
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: 999px;
+            color: #031014;
+            background: linear-gradient(135deg, rgba(125,211,252,.96), rgba(167,139,250,.92), rgba(251,113,133,.90));
+            box-shadow: 0 12px 35px rgba(34,211,238,.20), inset 0 1px 0 rgba(255,255,255,.55);
+            font-variation-settings: 'FILL' 1, 'wght' 520, 'GRAD' 0, 'opsz' 28;
+        }
+
+        .app-hero h1 {
+            margin: .65rem 0 .18rem;
+            font-size: clamp(2.1rem, 6vw, 4.7rem);
+            line-height: .92;
+            letter-spacing: -.07em;
+            background: linear-gradient(120deg, #fff, #d9f7ff 35%, #c4b5fd 70%, #fecdd3);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
+            text-shadow: 0 0 34px rgba(125,211,252,.14);
+        }
+
+        .app-hero p {
+            max-width: 780px;
+            margin: .35rem 0 0;
+            color: rgba(247,247,251,.76) !important;
+            font-size: 1.02rem;
+        }
+
+        .section-heading {
+            margin: .45rem 0 1rem;
+        }
+
+        .section-heading strong,
+        .result-heading h2 {
+            display: block;
+            margin: 0;
+            font-size: 1.28rem;
+            line-height: 1.1;
+        }
+
+        .section-heading small {
+            display: block;
+            margin-top: .22rem;
+            font-size: .78rem;
+            letter-spacing: .07em;
+            text-transform: uppercase;
+        }
+
+        .result-heading {
+            margin: 1.2rem 0 .9rem;
+        }
+
+        [data-testid="stTextInput"] input,
+        [data-testid="stNumberInput"] input,
+        [data-testid="stTextArea"] textarea,
+        [data-baseweb="select"] > div,
+        [data-baseweb="base-input"],
+        [data-testid="stDateInput"] input,
+        [data-testid="stFileUploader"] section {
+            color: var(--amp-text) !important;
+            background: rgba(255,255,255,.075) !important;
+            border: 1px solid rgba(255,255,255,.16) !important;
+            border-radius: 16px !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 10px 28px rgba(0,0,0,.20) !important;
+        }
+
+        [data-testid="stTextInput"] input:focus,
+        [data-testid="stTextArea"] textarea:focus,
+        [data-baseweb="select"] > div:focus-within,
+        [data-testid="stDateInput"] input:focus {
+            border-color: rgba(125,211,252,.72) !important;
+            box-shadow: 0 0 0 1px rgba(125,211,252,.26), 0 0 38px rgba(34,211,238,.12) !important;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: rgba(247,247,251,.42) !important;
+        }
+
+        [data-testid="stSlider"] [role="slider"] {
+            background: linear-gradient(135deg, var(--amp-blue), var(--amp-violet)) !important;
+            border-color: rgba(255,255,255,.55) !important;
+            box-shadow: 0 0 22px rgba(125,211,252,.42) !important;
+        }
+
+        [data-testid="stSlider"] div[data-testid="stTickBar"] {
+            background: rgba(255,255,255,.12) !important;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button,
+        [data-testid="baseButton-secondary"],
+        [data-testid="baseButton-primary"] {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.24) !important;
+            border-radius: 18px !important;
+            color: #ffffff !important;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.06) 48%, rgba(255,255,255,.12)) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 18px 42px rgba(0,0,0,.35) !important;
+            backdrop-filter: blur(18px) saturate(1.55);
+            -webkit-backdrop-filter: blur(18px) saturate(1.55);
+            transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease, background .22s ease !important;
+        }
+
+        .stButton > button::before,
+        .stDownloadButton > button::before,
+        [data-testid="baseButton-secondary"]::before,
+        [data-testid="baseButton-primary"]::before {
+            content: "";
+            position: absolute;
+            inset: -65% auto -65% -50%;
+            width: 48%;
+            transform: rotate(22deg) translateX(-120%);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.50), transparent);
+            transition: transform .65s ease;
+        }
+
+        .stButton > button:hover,
+        .stDownloadButton > button:hover,
+        [data-testid="baseButton-secondary"]:hover,
+        [data-testid="baseButton-primary"]:hover {
+            transform: translateY(-1px);
+            border-color: rgba(125,211,252,.72) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.34), 0 22px 55px rgba(34,211,238,.16), 0 18px 42px rgba(0,0,0,.42) !important;
+        }
+
+        .stButton > button:hover::before,
+        .stDownloadButton > button:hover::before,
+        [data-testid="baseButton-secondary"]:hover::before,
+        [data-testid="baseButton-primary"]:hover::before {
+            transform: rotate(22deg) translateX(360%);
+        }
+
+        [data-testid="baseButton-primary"] {
+            background:
+                linear-gradient(135deg, rgba(34,211,238,.46), rgba(167,139,250,.30) 45%, rgba(251,113,133,.30)) !important;
+            border-color: rgba(255,255,255,.32) !important;
+        }
+
+        [data-testid="stIconMaterial"] {
+            color: #ffffff !important;
+            font-variation-settings: 'FILL' 0, 'wght' 560, 'GRAD' 0, 'opsz' 24;
+        }
+
+        [data-testid="stChatMessage"] {
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 22px;
+            background: linear-gradient(145deg, rgba(255,255,255,.082), rgba(255,255,255,.032));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 12px 36px rgba(0,0,0,.22);
+        }
+
+        [data-testid="stChatInput"] {
+            border-radius: 22px;
+            background: rgba(255,255,255,.06) !important;
+            border: 1px solid rgba(255,255,255,.14) !important;
+            box-shadow: 0 18px 45px rgba(0,0,0,.28) !important;
+            backdrop-filter: blur(18px);
+        }
+
+        [data-testid="stTabs"] button {
+            border-radius: 999px !important;
+            color: rgba(247,247,251,.72) !important;
+        }
+
+        [data-testid="stTabs"] button[aria-selected="true"] {
+            color: #ffffff !important;
+            background: rgba(255,255,255,.10) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+        }
+
+        [data-testid="stAlert"] {
+            border: 1px solid rgba(125,211,252,.24) !important;
+            border-radius: 22px !important;
+            background: linear-gradient(145deg, rgba(125,211,252,.11), rgba(255,255,255,.045)) !important;
+            color: var(--amp-text) !important;
+        }
+
+        iframe {
+            border-radius: 24px !important;
+            border: 1px solid rgba(255,255,255,.14) !important;
+            box-shadow: 0 24px 70px rgba(0,0,0,.35) !important;
+            background: rgba(255,255,255,.05) !important;
+        }
+
+        hr {
+            border-color: rgba(255,255,255,.11) !important;
+        }
+
+        a { color: #a5f3fc !important; }
+
+        @media (max-width: 640px) {
+            .block-container > div {
+                padding: 1rem;
+                border-radius: 24px;
+            }
+            .app-hero {
+                border-radius: 24px;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def mat_button(label, icon, **kwargs):
+    """Button dengan ikon Material Symbols; fallback aman bila Streamlit lama belum mendukung `icon`."""
+    try:
+        return st.button(label, icon=icon, **kwargs)
+    except TypeError as e:
+        if "icon" not in str(e):
+            raise
+        return st.button(label, **kwargs)
+
+
+def mat_download_button(label, data, file_name, mime, icon, **kwargs):
+    """Download button dengan ikon Material Symbols; fallback aman bila Streamlit lama belum mendukung `icon`."""
+    try:
+        return st.download_button(label, data, file_name, mime, icon=icon, **kwargs)
+    except TypeError as e:
+        if "icon" not in str(e):
+            raise
+        return st.download_button(label, data, file_name, mime, **kwargs)
+
 
 
 def secret(k):
@@ -409,6 +875,8 @@ ss.setdefault("hasil", None)
 ss.setdefault("catatan", "")
 ss.setdefault("form", {})
 
+inject_glassliquid_theme()
+
 SLIP_DEFAULT = {
     "izin_ortu": ("# Surat Balasan Orang Tua/Wali\n\n"
                   "Nama Orang Tua/Wali: ...................................\n"
@@ -433,9 +901,17 @@ SLIP_DEFAULT = {
 
 # ---------- Sidebar ----------
 with st.sidebar:
-    st.markdown("### ⚙️ Pengaturan dokumen")
+    st.markdown("""
+    <div class="section-heading">
+        <span class="material-symbols-rounded">tune</span>
+        <div>
+            <strong>Pengaturan dokumen</strong>
+            <small>Liquid glass workspace</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with st.expander("1️⃣ Jenis & template", expanded=True):
+    with st.expander("01  Jenis & template", expanded=True):
         jenis = st.selectbox("Jenis dokumen", JENIS, key="jenis")
         daftar = TEMPLATES[jenis]
         nama_tpl = st.selectbox(f"Template ({len(daftar)} contoh nyata)",
@@ -449,7 +925,7 @@ with st.sidebar:
     pakai_kop = tpl.get("kop", True)
     meta_mode = tpl.get("meta", "kiri")
 
-    with st.expander("2️⃣ Isi data", expanded=True):
+    with st.expander("02  Isi data", expanded=True):
         nilai = {}
         for f in tpl["fields"]:
             key = f"fld_{tpl['id']}_{f['key']}"
@@ -465,7 +941,7 @@ with st.sidebar:
         catatan = st.text_area("Catatan tambahan untuk AI", key="catatan_tpl", height=70,
                                placeholder="hal lain yang perlu ditulis...")
 
-    with st.expander("3️⃣ Kop, nomor & penerima", expanded=False):
+    with st.expander("03  Kop, nomor & penerima", expanded=False):
         kop = None
         if pakai_kop:
             kop = {
@@ -496,7 +972,7 @@ with st.sidebar:
         if o.get("sk") or o.get("tentang"):
             tentang = st.text_input("Tentang", nilai.get("tentang", ""))
 
-    with st.expander("4️⃣ Tanda tangan & lampiran blok", expanded=False):
+    with st.expander("04  Tanda tangan & lampiran blok", expanded=False):
         n_ttd = st.number_input("Jumlah penandatangan", 1, 4, int(o.get("ttd", 1)))
         labels = o.get("ttd_label") or []
         ttds = []
@@ -531,7 +1007,7 @@ with st.sidebar:
                                 SLIP_DEFAULT.get(slip_key, "") if slip_key else "",
                                 height=120)
 
-    with st.expander("5️⃣ Tata letak halaman", expanded=False):
+    with st.expander("05  Tata letak halaman", expanded=False):
         cfg = {
             "paper": st.selectbox("Ukuran kertas", list(PAPER)),
             "font": st.selectbox("Huruf", list(FONTS)),
@@ -544,15 +1020,26 @@ with st.sidebar:
             "pagepos": st.selectbox("Posisi nomor halaman", POS, index=1),
         }
 
-    buat = st.button("🚀 let's go!! Buat file nya", type="primary", use_container_width=True)
-    if st.button("🧹 Bersihkan percakapan", use_container_width=True):
+    buat = mat_button("Buat file nya", ":material/rocket_launch:", type="primary", use_container_width=True)
+    if mat_button("Bersihkan percakapan", ":material/cleaning_services:", use_container_width=True):
         ss.chat, ss.doc, ss.hasil = [], None, None
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.title("💬 Ampera Scribe")
-st.caption(f"{APP_VER} · {TPL.JUMLAH} template disalin dari contoh surat nyata "
-           f"pada {len(JENIS)} jenis dokumen")
+st.markdown(
+    f"""
+    <div class="app-hero">
+        <div class="app-hero-badge">
+            <span class="material-symbols-rounded">edit_note</span>
+            <span class="amp-muted">{APP_VER}</span>
+        </div>
+        <h1>Ampera Scribe</h1>
+        <p>{TPL.JUMLAH} template dari contoh surat nyata pada {len(JENIS)} jenis dokumen.
+        Buat, rapikan, terjemahkan, lalu unduh dokumen resmi dalam tampilan liquid glass.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 for m in ss.chat:
     with st.chat_message(m["role"]):
@@ -598,27 +1085,32 @@ if buat:
                 ss.hasil = data
                 ss.doc = rakit(data)
                 ss.chat.append({"role": "assistant",
-                                "text": f"✅ **{data.get('judul', tpl['judul'])}** selesai "
+                                "text": f"**{data.get('judul', tpl['judul'])}** selesai "
                                         f"disusun (model: {prov}). Silakan lihat pratinjau "
                                         "dan unduh di bawah."})
             except Exception as e:
-                ss.chat.append({"role": "assistant", "text": f"❌ Gagal: {e}"})
+                ss.chat.append({"role": "assistant", "text": f"Gagal: {e}"})
     st.rerun()
 
 # ---------- Hasil ----------
 if ss.doc:
     doc = ss.doc
     st.divider()
-    st.subheader("📄 Hasil dokumen")
+    st.markdown("""
+    <div class="result-heading">
+        <span class="material-symbols-rounded">description</span>
+        <h2>Hasil dokumen</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
     c1, c2 = st.columns([2, 1])
     with c1:
-        arah = st.selectbox("🌐 Terjemahkan isi dokumen",
+        arah = st.selectbox("Terjemahkan isi dokumen",
                             ["(tidak diterjemahkan)"] + list(LANG))
     with c2:
         st.write("")
-        if st.button("Terjemahkan", use_container_width=True,
-                     disabled=arah == "(tidak diterjemahkan)"):
+        if mat_button("Terjemahkan", ":material/translate:", use_container_width=True,
+                      disabled=arah == "(tidak diterjemahkan)"):
             with st.spinner("Menerjemahkan…"):
                 try:
                     data, prov = translate(ss.hasil, arah)
@@ -629,7 +1121,7 @@ if ss.doc:
                 except Exception as e:
                     st.error(f"Gagal menerjemahkan: {e}")
 
-    t1, t2 = st.tabs(["👁️ Pratinjau", "✏️ Edit teks"])
+    t1, t2 = st.tabs(["Pratinjau", "Edit teks"])
     with t1:
         st.components.v1.html(build_html(doc), height=1100, scrolling=True)
     with t2:
@@ -637,21 +1129,21 @@ if ss.doc:
         doc["pembuka"] = st.text_area("Pembuka", doc["pembuka"], height=110)
         doc["isi"] = st.text_area("Isi", doc["isi"], height=380)
         doc["penutup"] = st.text_area("Penutup", doc["penutup"], height=110)
-        if st.button("💾 Simpan perubahan"):
+        if mat_button("Simpan perubahan", ":material/save:"):
             ss.doc = doc
             st.rerun()
 
     nama_file = re.sub(r"[^\w\- ]+", "", doc["judul"] or "dokumen").strip().replace(" ", "_")
     d1, d2 = st.columns(2)
     with d1:
-        st.download_button("⬇️ Unduh Word (.docx)", build_docx(doc), f"{nama_file}.docx",
-                           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                           use_container_width=True)
+        mat_download_button("Unduh Word (.docx)", build_docx(doc), f"{nama_file}.docx",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            ":material/download:", use_container_width=True)
     with d2:
-        st.download_button("⬇️ Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
-                           "application/pdf", use_container_width=True)
+        mat_download_button("Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
+                            "application/pdf", ":material/download:", use_container_width=True)
 elif not ss.chat:
     st.info("Pilih **jenis** dan **template** di sidebar, isi datanya, lalu tekan "
-            "**🚀 let's go!! Buat file nya**. Semua template disalin dari contoh surat "
+            "**Buat file nya**. Semua template disalin dari contoh surat "
             "nyata, jadi kalimat bakunya sudah mengikuti aslinya — AI hanya mengisi "
             "bagian variabel.")
