@@ -441,10 +441,9 @@ def inject_glassliquid_theme():
         }
 
         iframe {
-            border-radius: 24px !important;
-            border: 1px solid rgba(255,255,255,.14) !important;
-            box-shadow: 0 24px 70px rgba(0,0,0,.35) !important;
-            background: rgba(255,255,255,.05) !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
         }
 
         hr {
@@ -872,10 +871,9 @@ def translate(doc, arah):
 
 # ---------- Status ----------
 ss = st.session_state
-ss.setdefault("chat", [])
 ss.setdefault("doc", None)
 ss.setdefault("hasil", None)
-ss.setdefault("catatan", "")
+ss.setdefault("notice", None)
 ss.setdefault("form", {})
 
 inject_glassliquid_theme()
@@ -1023,17 +1021,26 @@ with st.sidebar:
             "pagepos": st.selectbox("Posisi nomor halaman", POS, index=1),
         }
 
-    buat = mat_button("Buat file nya", ":material/rocket_launch:", type="primary", use_container_width=True)
-    if mat_button("Bersihkan percakapan", ":material/cleaning_services:", use_container_width=True):
-        ss.chat, ss.doc, ss.hasil = [], None, None
+    if mat_button("Reset dokumen", ":material/restart_alt:", use_container_width=True):
+        ss.doc, ss.hasil, ss.notice = None, None, None
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.iframe(LIQUID_CENTERPIECE, height=420)
+st.iframe(LIQUID_CENTERPIECE, height=360)
 
-for m in ss.chat:
-    with st.chat_message(m["role"]):
-        st.markdown(m["text"])
+cta_cols = st.columns([1, 1.2, 1])
+with cta_cols[1]:
+    buat = mat_button("Let's go, buat file nya", ":material/rocket_launch:",
+                      type="primary", use_container_width=True, key="main_generate")
+
+if ss.notice:
+    kind, text = ss.notice
+    if kind == "success":
+        st.success(text)
+    elif kind == "error":
+        st.error(text)
+    else:
+        st.info(text)
 
 
 def rakit(data):
@@ -1055,31 +1062,21 @@ def rakit(data):
     }
 
 
-pesan = st.chat_input("Ceritakan kebutuhan dokumenmu di sini…")
-if pesan:
-    ss.chat.append({"role": "user", "text": pesan})
-    ss.catatan = pesan
-    st.rerun()
-
 if buat:
     bahan = brief_from_fields(tpl, nilai)
-    tambahan = "\n".join(x for x in (catatan, ss.catatan) if x.strip())
+    tambahan = catatan.strip()
     if tambahan:
         bahan += "\nCatatan tambahan: " + tambahan
-    ss.chat.append({"role": "user",
-                    "text": f"Buatkan **{tpl['nama']}** ({jenis})."})
-    with st.chat_message("assistant"):
-        with st.spinner("Menyusun dokumen…"):
-            try:
-                data, prov = generate(jenis, bahan, tone, length, tpl, nilai)
-                ss.hasil = data
-                ss.doc = rakit(data)
-                ss.chat.append({"role": "assistant",
-                                "text": f"**{data.get('judul', tpl['judul'])}** selesai "
-                                        f"disusun (model: {prov}). Silakan lihat pratinjau "
-                                        "dan unduh di bawah."})
-            except Exception as e:
-                ss.chat.append({"role": "assistant", "text": f"Gagal: {e}"})
+    with st.spinner("Menyusun dokumen…"):
+        try:
+            data, prov = generate(jenis, bahan, tone, length, tpl, nilai)
+            ss.hasil = data
+            ss.doc = rakit(data)
+            ss.notice = ("success",
+                         f"{data.get('judul', tpl['judul'])} selesai disusun "
+                         f"(model: {prov}). Silakan lihat pratinjau dan unduh di bawah.")
+        except Exception as e:
+            ss.notice = ("error", f"Gagal: {e}")
     st.rerun()
 
 # ---------- Hasil ----------
@@ -1132,8 +1129,8 @@ if ss.doc:
     with d2:
         mat_download_button("Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
                             "application/pdf", ":material/download:", use_container_width=True)
-elif not ss.chat:
+else:
     st.info("Pilih **jenis** dan **template** di sidebar, isi datanya, lalu tekan "
-            "**Buat file nya**. Semua template disalin dari contoh surat "
+            "**Let's go, buat file nya**. Semua template disalin dari contoh surat "
             "nyata, jadi kalimat bakunya sudah mengikuti aslinya — AI hanya mengisi "
             "bagian variabel.")
