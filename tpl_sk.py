@@ -1,0 +1,98 @@
+from .common import F, T, TABEL, TEMBUSAN, PEG
+
+MENIMBANG = F("menimbang", "Menimbang (satu per baris)", "area",
+              "bahwa untuk kelancaran pelaksanaan kegiatan ... perlu menetapkan panitia")
+MENGINGAT = F("mengingat", "Mengingat / dasar hukum (satu per baris)", "area",
+              "Undang-undang Nomor 20 Tahun 2003\nPeraturan Pemerintah Nomor 29 Tahun 1990")
+DIKTUM = F("diktum", "Isi keputusan / diktum (satu per baris)", "area",
+           "Menetapkan susunan kepanitiaan sebagaimana terlampir")
+TENTANG = F("tentang", "Tentang", "text", "Pembentukan Panitia Pelaksana")
+TUTUP = ("Surat Keputusan ini berlaku sejak tanggal ditetapkan, dengan catatan apabila "
+         "terdapat kekeliruan pada penetapan ini akan diperbaiki seperlunya.")
+
+ITEMS = [
+    T("sk_panitia_sekolah", "SK Pembentukan Panitia (sekolah)",
+      "Struktur ringkas: Tentang, Menimbang, Mengingat, Memutuskan Pertama-Kelima.",
+      "Surat Keputusan",
+      ["Tentang", "Menimbang", "Mengingat", "Memutuskan (diktum Pertama s.d. terakhir)"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("pemberi", "Pejabat yang menetapkan", "text", "Kepala SMK Negeri 1 ..."),
+       F("kegiatan", "Kegiatan terkait", "text", ""),
+       F("tapel", "Tahun pelajaran", "text", "2026/2027")],
+      {"pembuka": "{pemberi}, setelah:", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True),
+
+    T("sk_panitia_keagamaan", "SK Panitia Kegiatan Keagamaan",
+      "Menimbang berdasar dalil Al-Qur'an & Hadits; lampiran susunan panitia.",
+      "Surat Keputusan",
+      ["Tentang", "Menimbang (termasuk dalil)", "Mengingat", "Memutuskan"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("dalil", "Dalil Al-Qur'an / Hadits", "area", ""),
+       F("dalil_arab", "Teks Arab (opsional)", "area", ""),
+       F("pemberi", "Pejabat yang menetapkan", "text", "Ketua Remaja Masjid ..."),
+       F("lampiran_susunan", "Lampiran", "text", "Susunan panitia terlampir")],
+      {"pembuka": "{pemberi}, setelah:", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, salam="islami", arab=True),
+
+    T("sk_pengangkatan_gtt", "SK Pengangkatan Guru Tidak Tetap",
+      "Mengingat berlapis (UU, PP, Kepmendikbud); diktum Pertama s.d. Ketujuh; tembusan.",
+      "Surat Keputusan",
+      ["Tentang", "Menimbang", "Mengingat", "Memutuskan (diktum Pertama s.d. Ketujuh)"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("pemberi", "Pejabat yang menetapkan", "text", "Kepala SD Negeri ..."),
+       F("lampiran_susunan", "Lampiran", "text", "1 (satu) berkas"),
+       F("sumber_dana", "Sumber pembiayaan", "text",
+         "Bantuan Operasional Sekolah (BOS)"), TEMBUSAN],
+      {"pembuka": "{pemberi}, setelah:", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, tembusan=True),
+
+    T("sk_penugasan_honorer", "SK Penugasan Guru Honorer",
+      "Ada blok 'Memperhatikan'; diktum memuat data guru, honor, dan TMT.",
+      "Surat Keputusan",
+      ["Tentang", "Menimbang", "Mengingat", "Memperhatikan",
+       "Memutuskan (data guru, honor, TMT)"],
+      [TENTANG, MENIMBANG, MENGINGAT,
+       F("memperhatikan", "Memperhatikan (satu per baris)", "area", ""), DIKTUM] + PEG +
+      [F("ttl", "Tempat, tanggal lahir", "text", ""),
+       F("pendidikan", "Pendidikan", "text", "D-II"),
+       F("honor", "Honor per bulan", "text", "Rp 100.000 (Seratus Ribu Rupiah)"),
+       F("tmt", "Terhitung Mulai Tugas (TMT)", "text", "01 Januari 2026"),
+       F("sumber_dana", "Sumber dana", "text",
+         "Anggaran Manajemen Sekolah / Biaya Bantuan Operasional Sekolah"), TEMBUSAN],
+      {"pembuka": "{pemberi} setelah:", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, tembusan=True,
+      memperhatikan=True),
+
+    T("sk_penerima_bantuan", "SK Penetapan Penerima Bantuan/Beasiswa",
+      "Mengingat lintas instansi; kewajiban pelaporan penerima; daftar terlampir.",
+      "Surat Keputusan",
+      ["Tentang", "Menimbang", "Mengingat", "Memutuskan"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("pemberi", "Pejabat yang menetapkan", "text", "Kepala SD Negeri ..."),
+       F("program", "Nama program bantuan", "text", "Beasiswa Siswa Miskin (BSM)"),
+       F("tapel", "Tahun ajaran", "text", "2026/2027"), TABEL],
+      {"pembuka": "{pemberi}, setelah:", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, tabel=True),
+
+    T("sk_kepala_desa", "SK Kepala Desa (pengukuhan pengurus)",
+      "Diawali 'DENGAN RAHMAT TUHAN YANG MAHA ESA'; Menimbang bertingkat a-b.",
+      "Keputusan Kepala Desa",
+      ["Tentang", "Menimbang (a, b, dengan sub-uraian)", "Mengingat", "Memutuskan"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("pemberi", "Pejabat yang menetapkan", "text", "Kepala Desa ..."),
+       F("organisasi", "Organisasi", "text", "Karang Taruna ..."),
+       F("masa_bakti", "Masa bakti", "text", "2026 - 2031")],
+      {"pembuka": "DENGAN RAHMAT TUHAN YANG MAHA ESA\n{pemberi},", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, rahmat=True),
+
+    T("sk_ketua_rw", "SK Ketua RW (susunan pengurus)",
+      "Menimbang a-d berhuruf; Mengingat 1-4 (UU + pedoman dasar); masa bakti.",
+      "Keputusan Ketua RW",
+      ["Tentang", "Menimbang (a, b, c, d)", "Mengingat (1, 2, 3, 4)", "Memutuskan"],
+      [TENTANG, MENIMBANG, MENGINGAT, DIKTUM,
+       F("pemberi", "Pejabat yang menetapkan", "text", "Ketua RW 013"),
+       F("organisasi", "Organisasi", "text", "Karang Taruna RW 013"),
+       F("masa_bakti", "Masa bakti", "text", "2026 - 2029"), TABEL],
+      {"pembuka": "{pemberi},", "penutup": TUTUP},
+      meta="judul", ttd=1, tutup_tgl="ditetapkan", sk=True, tabel=True),
+]
