@@ -32,7 +32,7 @@ float seg(vec2 p, vec2 a, vec2 b){
 vec3 pal(float x, vec3 ph){ return .5 + .5 * cos(6.2831 * (x + ph)); }
 
 void main(){
-  vec2 p = (gl_FragCoord.xy - .5 * res) / min(res.x * .95, res.y * .85) * 2.;
+  vec2 p = (gl_FragCoord.xy - .5 * res) / min(res.x * .95, res.y * .85) * 2.75;
   p.y += 0.02;
 
   // bentuk: bulat -> huruf A (campuran jarak, jadi perubahannya mulus)
