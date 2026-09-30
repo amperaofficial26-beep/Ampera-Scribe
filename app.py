@@ -1,4 +1,4 @@
-import io, os, re, json, datetime
+import io, os, re, json, base64, datetime
 import streamlit as st
 from openai import OpenAI
 from PIL import Image as PILImage
@@ -33,7 +33,7 @@ POS = ["Kiri", "Tengah", "Kanan"]
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
          "September", "Oktober", "November", "Desember"]
 SIGN_W = 7  # lebar blok tanda tangan (cm)
-APP_VER = "v3 - parser AI tahan banting"
+APP_VER = "v4 - pratinjau langsung"
 
 
 def secret(k):
@@ -98,11 +98,59 @@ def _json_blob(txt):
     return None
 
 
+REASON_PAT = re.compile(
+    r"\b(we need to|we should|the user|let's craft|let us|i should|the spec|"
+    r"as an ai|output json|valid json|must follow template|acceptable\.|probably okay)\b", re.I)
+
+
+def _strip_reasoning(txt):
+    """Buang blok berpikir model (<think>...</think>, 'Analysis:' dsb) dan pagar kode."""
+    t = txt or ""
+    t = re.sub(r"<(think|thinking|reasoning|scratchpad)>.*?</\1>", "", t, flags=re.S | re.I)
+    t = re.sub(r"<(think|thinking|reasoning|scratchpad)>.*", "", t, flags=re.S | re.I)
+    t = re.sub(r"```[a-zA-Z]*", "", t).replace("```", "")
+    return t.strip()
+
+
+def _salvage_json(txt):
+    """JSON terpotong (kehabisan token): tutup string/kurung yang menggantung."""
+    start = txt.find('{"')
+    if start == -1:
+        start = txt.find("{")
+    if start == -1:
+        return None
+    t = txt[start:]
+    depth, in_str, esc_ch = 0, False, False
+    for c in t:
+        if in_str:
+            if esc_ch:
+                esc_ch = False
+            elif c == "\\":
+                esc_ch = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+    if depth <= 0 and not in_str:
+        return None
+    t = t.rstrip().rstrip(",")
+    if in_str:
+        t += '"'
+    return t + "}" * max(depth, 0)
+
+
 def _from_text(txt):
-    """Fallback: model balas teks biasa -> pecah jadi judul/pembuka/isi/penutup."""
+    """Fallback: model balas teks biasa -> pecah jadi judul/pembuka/isi/penutup.
+    Menolak teks yang jelas-jelas catatan berpikir model, bukan isi dokumen."""
     t = (txt or "").strip()
     if not t:
         return None
+    if REASON_PAT.search(t[:1500]) or t.lower().count("json") >= 2:
+        raise ValueError("model membalas catatan berpikir, bukan dokumen")
     par = [p.strip() for p in re.split(r"\n\s*\n", t) if p.strip()]
     judul = ""
     if par and len(par[0]) < 120 and "\n" not in par[0]:
@@ -124,37 +172,59 @@ def _normalize(data):
     return out
 
 
+def _clean_val(v):
+    v = re.sub(r"^(judul|pembuka|isi|penutup)\s*:\s*", "", str(v or "").strip(), flags=re.I)
+    v = re.sub(r"\n{3,}", "\n\n", v)
+    return v.strip()
+
+
 def _parse(raw):
-    blob = _json_blob(raw)
-    if blob:
+    txt = _strip_reasoning(raw)
+    for blob in (_json_blob(txt), _salvage_json(txt)):
+        if not blob:
+            continue
         try:
             data = json.loads(blob)
-            if isinstance(data, dict) and any(k in data for k in KEYS):
-                return _normalize(data)
         except json.JSONDecodeError:
-            pass
-    data = _from_text(raw)
+            continue
+        if isinstance(data, dict) and any(k in data for k in KEYS):
+            data = _normalize(data)
+            data = {k: _clean_val(v) for k, v in data.items()}
+            if (data["isi"] + data["pembuka"]).strip():
+                return data
+    data = _from_text(txt)
     if data:
-        return _normalize(data)
+        return {k: _clean_val(v) for k, v in _normalize(data).items()}
     raise ValueError("balasan AI kosong / tidak bisa dibaca")
 
 
 def generate(doc_type, brief, tone, length, tpl_nama="", outline=None):
-    sys_msg = ("Kamu penulis dokumen profesional berbahasa Indonesia. Balas HANYA JSON valid "
-               "tanpa teks lain, tanpa blok kode: "
-               '{"judul":"","pembuka":"","isi":"","penutup":""}. '
-               'Keempat nilai harus berupa string. '
-               'Di "isi", pisahkan paragraf dengan baris kosong; awali sub-judul dengan "# " '
-               'dan butir daftar dengan "- ". Jangan mengarang nama, angka, atau tanggal yang tidak diberikan. '
-               "Jangan sertakan salam tanda tangan/nama penulis di penutup.")
+    sys_msg = (
+        "Kamu penulis dokumen resmi berbahasa Indonesia. "
+        "JANGAN menulis proses berpikir, analisis, komentar, atau bahasa Inggris. "
+        "Balas LANGSUNG satu objek JSON valid, tanpa teks lain dan tanpa blok kode, "
+        'dengan tepat 4 kunci: {"judul":"","pembuka":"","isi":"","penutup":""}. '
+        "Keempat nilai wajib berupa string berbahasa Indonesia yang sudah siap cetak.\n"
+        'Aturan "isi": awali tiap sub-judul dengan "# ", tiap butir daftar dengan "- ", '
+        "pisahkan paragraf dengan satu baris kosong. "
+        'Jangan mengulang isi "pembuka" atau "penutup" di dalam "isi". '
+        "Jangan membuat sub-judul bernama Pembuka atau Penutup. "
+        "Jangan mengarang nama, nomor, atau tanggal yang tidak diberikan; "
+        "lewati saja bagian yang datanya tidak ada. "
+        "Jangan menulis salam penutup bertanda tangan atau nama penanda tangan."
+    )
     ker = ""
     if outline:
-        ker = ("\nKerangka wajib (tulis setiap bagian sebagai sub-judul '# ' dengan urutan ini, "
-               "lewati bagian yang datanya benar-benar tidak ada):\n"
+        ker = ("\nKerangka bagian untuk \"isi\" (urut, tulis sebagai sub-judul '# ', "
+               "lewati yang datanya tidak ada):\n"
                + "\n".join(f"{i}. {s}" for i, s in enumerate(outline, 1)) + "\n")
     usr = (f"Jenis dokumen: {doc_type}\nTemplate: {tpl_nama or doc_type}\n"
-           f"Gaya bahasa: {tone}\nPanjang: {length}\n{ker}\nBahan:\n{brief}")
+           f"Gaya bahasa: {tone}\nPanjang: {length}\n{ker}\nBahan:\n{brief}\n\n"
+           "Keluarkan HANYA JSON-nya sekarang.")
     msgs = [{"role": "system", "content": sys_msg}, {"role": "user", "content": usr}]
+    fix = {"role": "user", "content": ("Balasan sebelumnya tidak terpakai. Jangan tulis penjelasan "
+                                       "atau proses berpikir. Keluarkan HANYA objek JSON dengan kunci "
+                                       "judul, pembuka, isi, penutup dalam bahasa Indonesia.")}
 
     errors, skipped = [], []
     for name, url, model, key in PROVIDERS:
@@ -164,29 +234,28 @@ def generate(doc_type, brief, tone, length, tpl_nama="", outline=None):
         if not (k and url and model):
             skipped.append(name)
             continue
-        client = OpenAI(base_url=url, api_key=k, timeout=120, max_retries=1)
-        raw = None
-        # percobaan 1: JSON mode; percobaan 2: tanpa JSON mode (provider lama)
-        for kw in ({"response_format": {"type": "json_object"}}, {}):
+        client = OpenAI(base_url=url, api_key=k, timeout=180, max_retries=1)
+        # 3 percobaan: JSON mode -> polos -> polos + teguran
+        attempts = (({"response_format": {"type": "json_object"}}, msgs),
+                    ({}, msgs),
+                    ({}, msgs + [fix]))
+        for kw, mm in attempts:
             try:
-                r = client.chat.completions.create(model=model, temperature=0.4, messages=msgs, **kw)
+                r = client.chat.completions.create(model=model, temperature=0.3,
+                                                   max_tokens=4096, messages=mm, **kw)
                 raw = (r.choices[0].message.content or "").strip()
-                break
             except Exception as e:
-                err = f"{type(e).__name__}: {e}"
-                if not kw:
-                    errors.append(f"{name} ({model}) - {err}")
-        if raw is None:
-            continue
-        try:
-            return _parse(raw), name
-        except Exception as e:
-            errors.append(f"{name} ({model}) - {e}. Cuplikan balasan: {raw[:120]!r}")
+                errors.append(f"{name} ({model}) - {type(e).__name__}: {e}")
+                continue
+            try:
+                return _parse(raw), name
+            except Exception as e:
+                errors.append(f"{name} ({model}) - {e}. Cuplikan: {raw[:100]!r}")
 
     if not errors:
         raise RuntimeError("Belum ada API key aktif. Isi GROQ_API_KEY di Streamlit Secrets "
                            f"(provider yang dilewati: {', '.join(skipped) or '-'}).")
-    raise RuntimeError("Semua provider gagal:\n- " + "\n- ".join(errors))
+    raise RuntimeError("Semua provider gagal:\n- " + "\n- ".join(dict.fromkeys(errors)))
 
 
 # ---------- Word ----------
@@ -406,10 +475,85 @@ def build_pdf(d):
     return buf.getvalue()
 
 
+# ---------- Pratinjau HTML ----------
+def _b64(data):
+    return "data:image/png;base64," + base64.b64encode(data).decode()
+
+
+def build_html(d):
+    """Render dokumen jadi HTML yang meniru tata letak halaman (untuk pratinjau)."""
+    c, k, sg = d["cfg"], d["kop"], d["sign"]
+    fam = {"Times New Roman": "'Times New Roman', Times, serif",
+           "Arial": "Arial, Helvetica, sans-serif",
+           "Calibri": "Calibri, Carlito, sans-serif"}[c["font"]]
+    pw = PAPER[c["paper"]][0]
+    just = "justify" if c["align"].startswith("Rata kiri-kanan") else "left"
+    o = []
+
+    if k["name"] or k["logo"]:
+        logo = f'<img src="{_b64(k["logo"])}" style="width:2.3cm">' if k["logo"] else ""
+        sub = "".join(f'<div class="kl">{esc(x)}</div>' for x in (k["addr"], k["contact"]) if x)
+        o.append(f'<div class="kop"><div class="klogo">{logo}</div>'
+                 f'<div class="ktxt"><div class="kn">{esc(k["name"])}</div>{sub}</div></div><hr>')
+
+    if d["meta"]:
+        m = d["meta"]
+        o.append(f'<div class="right">{esc(m["kota_tgl"])}</div>')
+        rows = "".join(f'<tr><td class="lab">{esc(a)}</td><td>: {esc(b)}</td></tr>'
+                       for a, b in (("Nomor", m["nomor"]), ("Lampiran", m["lampiran"]),
+                                    ("Perihal", m["perihal"])) if b)
+        if rows:
+            o.append(f'<table class="meta">{rows}</table>')
+        if m["tujuan"]:
+            o.append(f'<div class="tuj">Yth. {esc(m["tujuan"])}<br>di tempat</div>')
+    else:
+        o.append(f'<div class="judul">{esc(d["judul"])}</div>')
+
+    for part in (d["pembuka"], d["isi"], d["penutup"]):
+        for kind, txt in blocks(part):
+            if kind == "h":
+                o.append(f'<div class="h">{esc(txt)}</div>')
+            elif kind == "li":
+                o.append(f'<ul><li>{esc(txt)}</li></ul>')
+            else:
+                o.append(f'<p>{esc(txt)}</p>')
+
+    if sg["nama"]:
+        al = {"Kiri": "flex-start", "Tengah": "center", "Kanan": "flex-end"}[sg["pos"]]
+        img = (f'<img src="{_b64(sg["img"])}" style="width:3.5cm">' if sg["img"]
+               else '<div style="height:2cm"></div>')
+        o.append(f'<div class="sgwrap" style="justify-content:{al}"><div class="sg">'
+                 f'<div>{esc(sg["kota_tgl"])}</div><div>{esc(sg["jabatan"])}</div>{img}'
+                 f'<div class="nm">{esc(sg["nama"])}</div>'
+                 f'<div>{esc(sg["nip"])}</div></div></div>')
+
+    return f"""<style>
+.paper{{background:#fff;color:#111;font-family:{fam};font-size:{c["size"]}pt;
+line-height:{c["spacing"]};padding:{c["my"]}cm {c["mx"]}cm;width:{pw}cm;max-width:100%;
+box-sizing:border-box;margin:0 auto;box-shadow:0 2px 14px rgba(0,0,0,.25);border-radius:4px;}}
+.paper p{{text-align:{just};margin:0 0 6pt;}}
+.paper hr{{border:0;border-top:1.5px solid #000;margin:6px 0 10px;}}
+.paper .kop{{display:flex;align-items:center;gap:.4cm;}}
+.paper .klogo{{width:3cm;text-align:center;}}
+.paper .ktxt{{flex:1;text-align:center;}}
+.paper .kn{{font-weight:700;font-size:{c["size"] + 4}pt;}}
+.paper .kl{{font-size:{c["size"] - 1}pt;}}
+.paper .right{{text-align:right;margin-bottom:6pt;}}
+.paper .meta td{{padding:0;vertical-align:top;}}
+.paper .meta .lab{{width:2.5cm;}}
+.paper .tuj{{margin:10pt 0;}}
+.paper .judul{{text-align:center;font-weight:700;font-size:{c["size"] + 2}pt;margin-bottom:10pt;}}
+.paper .h{{font-weight:700;margin:8pt 0 4pt;}}
+.paper ul{{margin:0 0 4pt 0;padding-left:1.2em;}}
+.paper .sgwrap{{display:flex;margin-top:14pt;}}
+.paper .sg{{width:7cm;text-align:center;}}
+.paper .sg .nm{{font-weight:700;text-decoration:underline;}}
+</style><div class="paper">{"".join(o)}</div>"""
+
 # ---------- UI ----------
 CSS = """
 <style>
-.block-container {padding-top: 2rem; max-width: 900px;}
+.block-container {padding-top: 2rem; max-width: 1000px;}
 div[data-testid="stChatMessage"] {background: rgba(128,128,128,.07); border-radius: 14px; padding: .6rem .9rem;}
 .go-btn button {width: 100%; height: 3.2rem; font-size: 1.15rem; font-weight: 700; border-radius: 14px;}
 .hint {opacity:.65; font-size:.88rem;}
@@ -578,13 +722,6 @@ if go:
 # ================= Hasil =================
 if ss.ready:
     st.divider()
-    st.subheader("📝 Hasil dokumen")
-    with st.expander("Edit teks dokumen", expanded=True):
-        st.text_input("Judul", key="judul")
-        st.text_area("Pembuka", key="pembuka", height=100)
-        st.text_area("Isi (paragraf dipisah baris kosong, '# ' sub-judul, '- ' butir)", key="isi", height=260)
-        st.text_area("Penutup", key="penutup", height=80)
-
     kt = f"{kota}, {tgl(tanggal)}"
     d = {
         "cfg": dict(paper=paper, mx=mx, my=my, font=font, size=size, spacing=spacing, align=align,
@@ -596,6 +733,23 @@ if ss.ready:
                      img=sign_img.getvalue() if sign_img else None),
         "judul": ss["judul"], "pembuka": ss["pembuka"], "isi": ss["isi"], "penutup": ss["penutup"],
     }
+
+    st.subheader("📄 Dokumen kamu")
+    tab_prev, tab_edit = st.tabs(["👁️ Pratinjau", "✏️ Edit teks"])
+
+    with tab_edit:
+        st.caption("Setiap perubahan langsung terlihat di tab Pratinjau dan ikut terbawa saat diunduh.")
+        st.text_input("Judul", key="judul")
+        st.text_area("Pembuka", key="pembuka", height=110)
+        st.text_area("Isi  —  '# ' sub-judul, '- ' butir, baris kosong = paragraf baru",
+                     key="isi", height=380)
+        st.text_area("Penutup", key="penutup", height=90)
+
+    with tab_prev:
+        st.caption("Tampilan mendekati hasil cetak. Perbaiki teksnya di tab Edit teks bila ada yang keliru.")
+        st.markdown(build_html(d), unsafe_allow_html=True)
+
+    st.write("")
     fn = re.sub(r"[^A-Za-z0-9]+", "-", (ss["judul"] or tpl["nama"]).strip()).strip("-").lower() or "dokumen"
     try:
         d1, d2 = st.columns(2)
