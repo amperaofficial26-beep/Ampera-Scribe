@@ -33,7 +33,7 @@ POS = ["Kiri", "Tengah", "Kanan"]
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
          "September", "Oktober", "November", "Desember"]
 SIGN_W = 7  # lebar blok tanda tangan (cm)
-APP_VER = "v4 - pratinjau langsung"
+APP_VER = "v5 - tata letak rapi"
 
 
 def secret(k):
@@ -51,21 +51,46 @@ def esc(t):
     return (t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+KV = re.compile(r"^([A-Za-z][\w./() -]{1,34}?)\s*:\s+(\S.*)$")
+
+
 def blocks(text):
+    """Pecah teks jadi elemen: ('h',judul) ('li',butir) ('kv',[(label,nilai)]) ('p',paragraf)."""
     out = []
     for b in re.split(r"\n\s*\n", (text or "").strip()):
-        b = b.strip()
-        if not b:
+        if not b.strip():
             continue
-        lines = b.splitlines()
-        if b.startswith("# "):
-            out.append(("h", b[2:].strip()))
-        elif all(l.strip().startswith("- ") for l in lines):
-            out += [("li", l.strip()[2:]) for l in lines]
-        else:
-            out.append(("p", " ".join(l.strip() for l in lines)))
-    return out
+        par, kv = [], []
 
+        def flush_par():
+            if par:
+                out.append(("p", " ".join(par)))
+                par.clear()
+
+        def flush_kv():
+            if kv:
+                out.append(("kv", list(kv)))
+                kv.clear()
+
+        for ln in b.splitlines():
+            ln = ln.strip()
+            if not ln:
+                continue
+            if ln.startswith("# "):
+                flush_par(); flush_kv()
+                out.append(("h", ln[2:].strip()))
+            elif ln.startswith("- "):
+                flush_par(); flush_kv()
+                out.append(("li", ln[2:].strip()))
+            elif KV.match(ln) and len(ln) < 90:
+                flush_par()
+                m = KV.match(ln)
+                kv.append((m.group(1).strip(), m.group(2).strip()))
+            else:
+                flush_kv()
+                par.append(ln)
+        flush_par(); flush_kv()
+    return out
 
 # ---------- AI ----------
 KEYS = ("judul", "pembuka", "isi", "penutup")
@@ -172,29 +197,151 @@ def _normalize(data):
     return out
 
 
-def _clean_val(v):
-    v = re.sub(r"^(judul|pembuka|isi|penutup)\s*:\s*", "", str(v or "").strip(), flags=re.I)
-    v = re.sub(r"\n{3,}", "\n\n", v)
-    return v.strip()
+PLACEHOLDER = re.compile(r"^[\[\(<]{1,2}[^\]\)>]{0,60}[\]\)>]{1,2}[.,]?$")
+
+
+def _esc_ctrl(t):
+    """Escape newline/tab mentah yang ada DI DALAM string JSON (bikin json.loads gagal)."""
+    out, in_str, esc_ch = [], False, False
+    for c in t:
+        if in_str:
+            if esc_ch:
+                esc_ch = False
+            elif c == "\\":
+                esc_ch = True
+            elif c == '"':
+                in_str = False
+            elif c == "\n":
+                out.append("\\n"); continue
+            elif c == "\r":
+                continue
+            elif c == "\t":
+                out.append("\\t"); continue
+        elif c == '"':
+            in_str = True
+        out.append(c)
+    return "".join(out)
+
+
+def _loads(t):
+    for cand in (t, _esc_ctrl(t)):
+        try:
+            return json.loads(cand)
+        except Exception:
+            pass
+    return None
+
+
+def _deep_find(obj, depth=0):
+    """Cari dict {judul,pembuka,isi,penutup} walau terbungkus/di-encode berlapis."""
+    if depth > 4:
+        return None
+    if isinstance(obj, str):
+        t = obj.strip()
+        if not (t.startswith("{") or t.startswith('"') or '\\"judul' in t or '"judul' in t):
+            return None
+        for cand in (t, _json_blob(t), t.replace('\\"', '"').replace("\\\\n", "\\n")):
+            if not cand:
+                continue
+            v = _loads(cand)
+            if v is not None and not isinstance(v, str):
+                r = _deep_find(v, depth + 1)
+                if r:
+                    return r
+            elif isinstance(v, str) and v != t:
+                r = _deep_find(v, depth + 1)
+                if r:
+                    return r
+            blob = _json_blob(cand)
+            if blob and blob != cand:
+                v2 = _loads(blob)
+                if v2 is not None:
+                    r = _deep_find(v2, depth + 1)
+                    if r:
+                        return r
+        return None
+    if isinstance(obj, list):
+        for x in obj:
+            r = _deep_find(x, depth + 1)
+            if r:
+                return r
+        return None
+    if isinstance(obj, dict):
+        if any(k in obj for k in KEYS):
+            return obj
+        # kasus {"{\"judul\":...}": ""} -> JSON tersembunyi di key
+        for k, v in obj.items():
+            for cand in (k, v):
+                r = _deep_find(cand, depth + 1)
+                if r:
+                    return r
+    return None
+
+
+def _tidy(v):
+    """Rapikan satu nilai teks dari AI."""
+    t = str(v or "")
+    if "\\n" in t and "\n" not in t:          # newline masih berupa literal \n
+        t = t.replace("\\n", "\n")
+    t = t.replace("\\t", " ").replace('\\"', '"').replace("\\'", "'")
+    t = t.strip()
+    if t.startswith("{") and t.endswith("}"):
+        t = t[1:-1].strip()
+    if len(t) > 1 and t[0] == t[-1] and t[0] in "\"'":
+        t = t[1:-1].strip()
+    t = re.sub(r"^(judul|pembuka|isi|penutup)\s*:\s*", "", t, flags=re.I)
+    out = []
+    for ln in t.splitlines():
+        s_ = ln.strip()
+        if not s_:
+            out.append("")
+            continue
+        if PLACEHOLDER.match(s_):            # buang [Penanggung Jawab], [Tanggal], dst.
+            continue
+        s_ = re.sub(r"^#{2,}\s*", "# ", s_)   # ## Judul -> # Judul
+        if not s_.startswith("# "):
+            s_ = re.sub(r"^[*+•]\s+", "- ", s_)
+            s_ = re.sub(r"^\d+[.)]\s+", "- ", s_)
+        out.append(s_)
+    t = "\n".join(out)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    return t.strip()
+
+
+def _split_sections(data):
+    """Pindahkan sub-judul '# Pembuka' / '# Penutup' di dalam isi ke field-nya sendiri."""
+    isi, buang = [], None
+    blok = re.split(r"\n(?=# )", data["isi"])
+    sisa = []
+    for b in blok:
+        head = b.split("\n", 1)[0].lstrip("# ").strip().lower()
+        body = b.split("\n", 1)[1].strip() if "\n" in b else ""
+        if head in ("pembuka", "salam pembuka", "pendahuluan surat") and not data["pembuka"]:
+            data["pembuka"] = body
+        elif head in ("penutup", "salam penutup", "kata penutup"):
+            if not data["penutup"]:
+                data["penutup"] = body
+        else:
+            sisa.append(b)
+    data["isi"] = "\n\n".join(x.strip() for x in sisa if x.strip())
+    return data
 
 
 def _parse(raw):
     txt = _strip_reasoning(raw)
-    for blob in (_json_blob(txt), _salvage_json(txt)):
-        if not blob:
+    for cand in (txt, _json_blob(txt), _salvage_json(txt)):
+        if not cand:
             continue
-        try:
-            data = json.loads(blob)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(data, dict) and any(k in data for k in KEYS):
-            data = _normalize(data)
-            data = {k: _clean_val(v) for k, v in data.items()}
+        data = _deep_find(cand) or _deep_find(_loads(cand) if _loads(cand) is not None else None)
+        if data:
+            data = {k: _tidy(v) for k, v in _normalize(data).items()}
             if (data["isi"] + data["pembuka"]).strip():
-                return data
+                return _split_sections(data)
     data = _from_text(txt)
     if data:
-        return {k: _clean_val(v) for k, v in _normalize(data).items()}
+        data = {k: _tidy(v) for k, v in _normalize(data).items()}
+        return _split_sections(data)
     raise ValueError("balasan AI kosong / tidak bisa dibaca")
 
 
@@ -267,10 +414,11 @@ def _field(run, code):
         run._r.append(x)
 
 
-def _hr(par):
+def _hr(par, double=False):
     pPr = par._p.get_or_add_pPr()
     bd = OxmlElement("w:pBdr"); ln = OxmlElement("w:bottom")
-    for k, v in (("val", "single"), ("sz", "12"), ("space", "1"), ("color", "000000")):
+    for k, v in (("val", "double" if double else "single"), ("sz", "12"),
+                 ("space", "1"), ("color", "000000")):
         ln.set(qn("w:" + k), v)
     bd.append(ln); pPr.append(bd)
 
@@ -308,11 +456,12 @@ def build_docx(d):
         if k["logo"]:
             c0.paragraphs[0].add_run().add_picture(io.BytesIO(k["logo"]), width=Cm(2.3))
         first = c1.paragraphs[0]; first.alignment = WA.CENTER
-        r = first.add_run(k["name"]); r.bold = True; r.font.size = Pt(c["size"] + 4)
+        first.paragraph_format.space_after = Pt(0)
+        r = first.add_run(k["name"].upper()); r.bold = True; r.font.size = Pt(c["size"] + 4)
         for line in (k["addr"], k["contact"]):
             if line:
                 P(line, WA.CENTER, size=c["size"] - 1, after=0, container=c1)
-        _hr(P(after=6))
+        _hr(P(after=10), double=True)
 
     body_al = ALIGN[c["align"]][1]
     if d["meta"]:
@@ -326,14 +475,30 @@ def build_docx(d):
         if m["tujuan"]:
             P("Yth. " + m["tujuan"], after=0); P("di tempat")
     else:
-        P(d["judul"], WA.CENTER, bold=True, size=c["size"] + 2)
+        p = P(d["judul"].upper(), WA.CENTER, bold=True, size=c["size"] + 2, underline=True)
+        p.paragraph_format.space_after = Pt(14)
 
     for part in (d["pembuka"], d["isi"], d["penutup"]):
         for kind, txt in blocks(part):
             if kind == "h":
-                P(txt, bold=True)
+                p = P(txt, bold=True, after=4)
+                p.paragraph_format.space_before = Pt(10)
+                p.paragraph_format.keep_with_next = True
             elif kind == "li":
-                doc.add_paragraph(txt, style="List Bullet")
+                p = doc.add_paragraph(txt, style="List Bullet")
+                p.paragraph_format.space_after = Pt(2)
+                p.alignment = body_al
+            elif kind == "kv":
+                wlab = min(max(len(a) for a, _ in txt) * 0.22 + 0.6, 6.5)
+                t = doc.add_table(rows=0, cols=3); t.autofit = False
+                for lab, val in txt:
+                    row = t.add_row().cells
+                    row[0].width, row[1].width, row[2].width = Cm(wlab), Cm(0.5), Cm(W - wlab - 0.5)
+                    for cell, s_ in ((row[0], lab), (row[1], ":"), (row[2], val)):
+                        pp = cell.paragraphs[0]
+                        pp.paragraph_format.space_after = Pt(0)
+                        pp.add_run(s_)
+                P(after=4)
             else:
                 P(txt, body_al)
 
@@ -420,7 +585,7 @@ def build_pdf(d):
     story = []
 
     if k["name"] or k["logo"]:
-        txt = [Paragraph(esc(k["name"]), S("kn", fontName=bold, fontSize=c["size"] + 4, alignment=TA_CENTER,
+        txt = [Paragraph(esc(k["name"].upper()), S("kn", fontName=bold, fontSize=c["size"] + 4, alignment=TA_CENTER,
                                             leading=(c["size"] + 4) * 1.2, spaceAfter=0))]
         for line in (k["addr"], k["contact"]):
             if line:
@@ -431,7 +596,9 @@ def build_pdf(d):
             story.append(t)
         else:
             story += txt
-        story += [Spacer(1, 4), HRFlowable(width="100%", thickness=1.5, color=colors.black), Spacer(1, 10)]
+        story += [Spacer(1, 4), HRFlowable(width="100%", thickness=1.6, color=colors.black),
+                  Spacer(1, 1.5), HRFlowable(width="100%", thickness=0.6, color=colors.black),
+                  Spacer(1, 12)]
 
     if d["meta"]:
         m = d["meta"]
@@ -440,22 +607,36 @@ def build_pdf(d):
                                                     ("Perihal", m["perihal"])) if val]
         if rows:
             t = Table([[Paragraph(esc(a), body), Paragraph(esc(b), body)] for a, b in rows],
-                      colWidths=[2.5 * cm, W - 2.5 * cm])
+                      colWidths=[2.5 * cm, W - 2.5 * cm], hAlign="LEFT")
             t.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
                                    ("TOPPADDING", (0, 0), (-1, -1), 0)]))
             story += [t, Spacer(1, 10)]
         if m["tujuan"]:
             story += [Paragraph("Yth. " + esc(m["tujuan"]), S("y", spaceAfter=0)), Paragraph("di tempat", body)]
     else:
-        story.append(Paragraph(esc(d["judul"]), S("t", fontName=bold, fontSize=c["size"] + 2, alignment=TA_CENTER,
-                                                  spaceAfter=10)))
+        story.append(Paragraph(f"<u>{esc(d['judul'].upper())}</u>",
+                               S("t", fontName=bold, fontSize=c["size"] + 2, alignment=TA_CENTER,
+                                 leading=(c["size"] + 2) * 1.3, spaceAfter=14)))
 
+    head = S("hd", fontName=bold, spaceBefore=10, spaceAfter=4)
     for part in (d["pembuka"], d["isi"], d["penutup"]):
         for kind, txt in blocks(part):
             if kind == "h":
-                story.append(Paragraph(f"<b>{esc(txt)}</b>", body))
+                story.append(Paragraph(esc(txt), head))
             elif kind == "li":
-                story.append(Paragraph(esc(txt), S("li", alignment=TA_LEFT, spaceAfter=2), bulletText="•"))
+                story.append(Paragraph(esc(txt), S("li", alignment=ALIGN[c["align"]][0], spaceAfter=3,
+                                                   leftIndent=14), bulletText="\u2022"))
+            elif kind == "kv":
+                wlab = min(max(len(a) for a, _ in txt) * 0.22 + 0.6, 6.5) * cm
+                rows = [[Paragraph(esc(a), body), Paragraph(":", body), Paragraph(esc(b), body)]
+                        for a, b in txt]
+                t = Table(rows, colWidths=[wlab, 0.5 * cm, W - wlab - 0.5 * cm], hAlign="LEFT")
+                t.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                       ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                                       ("TOPPADDING", (0, 0), (-1, -1), 0),
+                                       ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                                       ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+                story += [t, Spacer(1, 5)]
             else:
                 story.append(Paragraph(esc(txt), body))
 
@@ -494,7 +675,7 @@ def build_html(d):
         logo = f'<img src="{_b64(k["logo"])}" style="width:2.3cm">' if k["logo"] else ""
         sub = "".join(f'<div class="kl">{esc(x)}</div>' for x in (k["addr"], k["contact"]) if x)
         o.append(f'<div class="kop"><div class="klogo">{logo}</div>'
-                 f'<div class="ktxt"><div class="kn">{esc(k["name"])}</div>{sub}</div></div><hr>')
+                 f'<div class="ktxt"><div class="kn">{esc(k["name"].upper())}</div>{sub}</div></div><hr>')
 
     if d["meta"]:
         m = d["meta"]
@@ -507,7 +688,7 @@ def build_html(d):
         if m["tujuan"]:
             o.append(f'<div class="tuj">Yth. {esc(m["tujuan"])}<br>di tempat</div>')
     else:
-        o.append(f'<div class="judul">{esc(d["judul"])}</div>')
+        o.append(f'<div class="judul">{esc(d["judul"].upper())}</div>')
 
     for part in (d["pembuka"], d["isi"], d["penutup"]):
         for kind, txt in blocks(part):
@@ -515,6 +696,10 @@ def build_html(d):
                 o.append(f'<div class="h">{esc(txt)}</div>')
             elif kind == "li":
                 o.append(f'<ul><li>{esc(txt)}</li></ul>')
+            elif kind == "kv":
+                rows = "".join(f'<tr><td class="kvl">{esc(a)}</td><td class="kvc">:</td>'
+                               f'<td>{esc(b)}</td></tr>' for a, b in txt)
+                o.append(f'<table class="kv">{rows}</table>')
             else:
                 o.append(f'<p>{esc(txt)}</p>')
 
@@ -532,7 +717,7 @@ def build_html(d):
 line-height:{c["spacing"]};padding:{c["my"]}cm {c["mx"]}cm;width:{pw}cm;max-width:100%;
 box-sizing:border-box;margin:0 auto;box-shadow:0 2px 14px rgba(0,0,0,.25);border-radius:4px;}}
 .paper p{{text-align:{just};margin:0 0 6pt;}}
-.paper hr{{border:0;border-top:1.5px solid #000;margin:6px 0 10px;}}
+.paper hr{{border:0;border-top:1.6px solid #000;border-bottom:.6px solid #000;height:2px;margin:5px 0 12px;}}
 .paper .kop{{display:flex;align-items:center;gap:.4cm;}}
 .paper .klogo{{width:3cm;text-align:center;}}
 .paper .ktxt{{flex:1;text-align:center;}}
@@ -542,8 +727,12 @@ box-sizing:border-box;margin:0 auto;box-shadow:0 2px 14px rgba(0,0,0,.25);border
 .paper .meta td{{padding:0;vertical-align:top;}}
 .paper .meta .lab{{width:2.5cm;}}
 .paper .tuj{{margin:10pt 0;}}
-.paper .judul{{text-align:center;font-weight:700;font-size:{c["size"] + 2}pt;margin-bottom:10pt;}}
-.paper .h{{font-weight:700;margin:8pt 0 4pt;}}
+.paper .judul{{text-align:center;font-weight:700;text-decoration:underline;font-size:{c["size"] + 2}pt;margin-bottom:14pt;}}
+.paper .h{{font-weight:700;margin:10pt 0 4pt;}}
+.paper table.kv{{margin:0 0 5pt;border-collapse:collapse;}}
+.paper table.kv td{{padding:0 0 1pt;vertical-align:top;}}
+.paper table.kv .kvl{{white-space:nowrap;padding-right:.3cm;}}
+.paper table.kv .kvc{{width:.4cm;}}
 .paper ul{{margin:0 0 4pt 0;padding-left:1.2em;}}
 .paper .sgwrap{{display:flex;margin-top:14pt;}}
 .paper .sg{{width:7cm;text-align:center;}}
