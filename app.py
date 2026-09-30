@@ -1029,7 +1029,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.iframe(LIQUID_CENTERPIECE, height=560)
+st.iframe(LIQUID_CENTERPIECE, height=420)
 
 for m in ss.chat:
     with st.chat_message(m["role"]):
