@@ -3,3 +3,5 @@ openai
 python-docx
 reportlab
 pillow
+arabic-reshaper
+python-bidi
