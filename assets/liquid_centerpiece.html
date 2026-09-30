@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bola Cairan → Huruf A</title>
 <style>
-  :root { --bg: #04050c; }
-  html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  :root { --bg: transparent; }
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: transparent; }
   #err { position: fixed; inset: 0; display: none; place-items: center; color: #cfd3ff; font: 16px system-ui, sans-serif; text-align: center; padding: 24px; }
 </style>
 </head>
@@ -16,7 +16,7 @@
 <div id="err">Browser ini tidak mendukung WebGL, jadi animasi tidak bisa ditampilkan.</div>
 <script>
 const cv = document.getElementById('c');
-const gl = cv.getContext('webgl');
+const gl = cv.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
 if (!gl) { document.getElementById('err').style.display = 'grid'; }
 else {
 const vs = 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
@@ -90,11 +90,11 @@ void main(){
   vec3 gc = pal(time * .14, vec3(0., .33, .67));
   float pulse = .85 + .15 * sin(time * 2.);
   float glow = exp(-max(d, 0.) * 4.5) * .75 * pulse + exp(-max(d, 0.) * 14.) * .5;
-  vec3 bg = vec3(.016, .02, .045);
-  vec3 outc = bg + gc * glow;
+  vec3 outc = gc * glow;
 
   float mask = smoothstep(.006, -.006, d);
-  gl_FragColor = vec4(mix(outc, col, mask), 1.);
+  float alpha = clamp(mask + glow * .75, 0., 1.);
+  gl_FragColor = vec4(mix(outc, col, mask), alpha);
 }`;
 function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
 const pr = gl.createProgram();
