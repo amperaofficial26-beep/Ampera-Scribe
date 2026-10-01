@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orb Berpikir</title>
+<style>
+:root{--c1:#4285f4;--c2:#9b72cb;--c3:#d96570;--c4:#5ec8f2;--base:#1a1d3a;--spd:3.2s;--pulse:1.6s;--amp:1.02;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:transparent;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center}
+.stage{position:relative;width:min(62vw,280px);aspect-ratio:1}
+.glow{position:absolute;inset:-18%;border-radius:50%;filter:blur(38px);opacity:.6;
+  background:conic-gradient(from 0deg,var(--c1),var(--c2),var(--c3),var(--c4),var(--c1));
+  animation:spin calc(var(--spd)*1.4) linear infinite}
+.orb{position:absolute;inset:0;border-radius:50%;overflow:hidden;isolation:isolate;background:var(--base);
+  animation:breathe var(--pulse) ease-in-out infinite}
+.blob{position:absolute;top:14%;left:14%;width:72%;height:72%;border-radius:50%;filter:blur(24px);opacity:.95}
+.b1{background:radial-gradient(circle,var(--c1),transparent 70%);animation:orbit1 var(--spd) linear infinite}
+.b2{background:radial-gradient(circle,var(--c2),transparent 70%);animation:orbit2 calc(var(--spd)*.8) linear infinite}
+.b3{background:radial-gradient(circle,var(--c3),transparent 70%);animation:orbit3 calc(var(--spd)*1.2) linear infinite}
+.b4{background:radial-gradient(circle,var(--c4),transparent 70%);animation:orbit1 calc(var(--spd)*.65) linear infinite reverse}
+.shine{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 24%,rgba(255,255,255,.5),transparent 38%)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(var(--amp))}}
+@keyframes orbit1{from{transform:rotate(0) translateX(22%) rotate(0)}to{transform:rotate(360deg) translateX(22%) rotate(-360deg)}}
+@keyframes orbit2{from{transform:rotate(120deg) translateX(26%) rotate(-120deg)}to{transform:rotate(480deg) translateX(26%) rotate(-480deg)}}
+@keyframes orbit3{from{transform:rotate(240deg) translateX(18%) rotate(-240deg)}to{transform:rotate(600deg) translateX(18%) rotate(-600deg)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:60s!important}}
+</style>
+</head>
+<body>
+<div class="stage" role="img" aria-label="Orb berpikir beranimasi">
+  <div class="glow"></div>
+  <div class="orb">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+    <div class="shine"></div>
+  </div>
+</div>
+</body>
+</html>
