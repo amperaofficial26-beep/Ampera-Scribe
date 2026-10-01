@@ -1,4 +1,3 @@
-import base64
 import os, re, json, datetime
 from pathlib import Path
 
@@ -21,7 +20,7 @@ BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustu
          "September", "Oktober", "November", "Desember"]
 APP_VER = f"v6 - {TPL.JUMLAH} template contoh nyata + terjemahan"
 BASE_DIR = Path(__file__).resolve().parent
-MAIN_LOGO = BASE_DIR / "assets" / "ampera_scribe_logo_animated.webp"
+THINKING_ORB = BASE_DIR / "assets" / "thinking_orb.html"
 
 # ---------- Tema UI: Liquid Glass ----------
 def inject_glassliquid_theme():
@@ -448,49 +447,6 @@ def inject_glassliquid_theme():
             outline: 0 !important;
         }
 
-        .brand-logo-wrap {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: clamp(220px, 30vw, 340px);
-            margin: 0 auto .75rem;
-            pointer-events: none;
-        }
-
-        .brand-logo-wrap img {
-            width: clamp(210px, 28vw, 360px);
-            max-width: 72%;
-            height: auto;
-            display: block;
-            mix-blend-mode: screen;
-            transform-origin: 50% 55%;
-            will-change: transform, filter;
-            animation: amperaLogoFloat 6.5s ease-in-out infinite,
-                       amperaLogoGlow 4.8s ease-in-out infinite alternate;
-            filter: drop-shadow(0 0 34px rgba(34, 211, 238, .25))
-                    drop-shadow(0 0 70px rgba(167, 139, 250, .18));
-        }
-
-        @keyframes amperaLogoFloat {
-            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-            50% { transform: translate3d(0, -6px, 0) scale(1.015); }
-        }
-
-        @keyframes amperaLogoGlow {
-            0% {
-                filter: drop-shadow(0 0 30px rgba(34, 211, 238, .25))
-                        drop-shadow(0 0 66px rgba(167, 139, 250, .17));
-            }
-            50% {
-                filter: drop-shadow(0 0 38px rgba(236, 72, 153, .26))
-                        drop-shadow(0 0 78px rgba(132, 204, 22, .14));
-            }
-            100% {
-                filter: drop-shadow(0 0 34px rgba(251, 191, 36, .20))
-                        drop-shadow(0 0 74px rgba(34, 211, 238, .18));
-            }
-        }
-
         hr {
             border-color: rgba(255,255,255,.11) !important;
         }
@@ -531,18 +487,6 @@ def mat_download_button(label, data, file_name, mime, icon, **kwargs):
             raise
         return st.download_button(label, data, file_name, mime, **kwargs)
 
-
-def image_data_uri(path):
-    """Konversi aset gambar lokal ke data URI untuk logo inline tanpa zona iframe."""
-    suffix = Path(path).suffix.lower()
-    mime = {
-        ".png": "image/png",
-        ".webp": "image/webp",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-    }.get(suffix, "application/octet-stream")
-    encoded = base64.b64encode(Path(path).read_bytes()).decode("ascii")
-    return f"data:{mime};base64,{encoded}"
 
 
 def secret(k):
@@ -1084,14 +1028,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.markdown(
-    f"""
-    <div class="brand-logo-wrap" aria-label="Logo Ampera Scribe">
-        <img src="{image_data_uri(MAIN_LOGO)}" alt="Ampera Scribe">
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.iframe(THINKING_ORB, height=320)
 
 cta_cols = st.columns([1, 1.2, 1])
 with cta_cols[1]:
