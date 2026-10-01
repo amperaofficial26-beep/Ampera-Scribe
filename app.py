@@ -1028,7 +1028,7 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.iframe(THINKING_ORB, height=320)
+st.iframe(THINKING_ORB, height=300)
 
 cta_cols = st.columns([1, 1.2, 1])
 with cta_cols[1]:
