@@ -463,8 +463,46 @@ def inject_glassliquid_theme():
             height: auto;
             display: block;
             mix-blend-mode: screen;
-            filter: drop-shadow(0 0 32px rgba(125, 211, 252, .16))
-                    drop-shadow(0 0 58px rgba(167, 139, 250, .12));
+            transform-origin: 50% 55%;
+            will-change: filter, transform;
+            animation: amperaLogoColor 13s ease-in-out infinite alternate,
+                       amperaLogoFloat 6.5s ease-in-out infinite;
+            filter: hue-rotate(0deg) saturate(1.22) brightness(1.04)
+                    drop-shadow(0 0 32px rgba(125, 211, 252, .22))
+                    drop-shadow(0 0 64px rgba(167, 139, 250, .16));
+        }
+
+        @keyframes amperaLogoColor {
+            0% {
+                filter: hue-rotate(0deg) saturate(1.18) brightness(1.04)
+                        drop-shadow(0 0 30px rgba(34, 211, 238, .24))
+                        drop-shadow(0 0 62px rgba(167, 139, 250, .16));
+            }
+            25% {
+                filter: hue-rotate(72deg) saturate(1.35) brightness(1.08)
+                        drop-shadow(0 0 34px rgba(132, 204, 22, .26))
+                        drop-shadow(0 0 70px rgba(34, 211, 238, .18));
+            }
+            50% {
+                filter: hue-rotate(156deg) saturate(1.45) brightness(1.07)
+                        drop-shadow(0 0 36px rgba(96, 165, 250, .25))
+                        drop-shadow(0 0 72px rgba(236, 72, 153, .18));
+            }
+            75% {
+                filter: hue-rotate(244deg) saturate(1.38) brightness(1.08)
+                        drop-shadow(0 0 34px rgba(236, 72, 153, .28))
+                        drop-shadow(0 0 74px rgba(251, 191, 36, .15));
+            }
+            100% {
+                filter: hue-rotate(330deg) saturate(1.28) brightness(1.05)
+                        drop-shadow(0 0 32px rgba(167, 139, 250, .25))
+                        drop-shadow(0 0 68px rgba(34, 211, 238, .16));
+            }
+        }
+
+        @keyframes amperaLogoFloat {
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            50% { transform: translate3d(0, -6px, 0) scale(1.015); }
         }
 
         hr {
