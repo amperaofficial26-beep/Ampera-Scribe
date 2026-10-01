@@ -1,3 +1,4 @@
+import base64
 import os, re, json, datetime
 from pathlib import Path
 
@@ -20,7 +21,7 @@ BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustu
          "September", "Oktober", "November", "Desember"]
 APP_VER = f"v6 - {TPL.JUMLAH} template contoh nyata + terjemahan"
 BASE_DIR = Path(__file__).resolve().parent
-LIQUID_CENTERPIECE = BASE_DIR / "assets" / "liquid_centerpiece.html"
+MAIN_LOGO = BASE_DIR / "assets" / "ampera_scribe_logo.png"
 
 # ---------- Tema UI: Liquid Glass ----------
 def inject_glassliquid_theme():
@@ -440,12 +441,30 @@ def inject_glassliquid_theme():
 
         iframe,
         [data-testid="stHtml"],
-        [data-testid="stHtml"] > div,
-        [data-testid="stElementContainer"]:has(.liquid-centerpiece) {
+        [data-testid="stHtml"] > div {
             border: 0 !important;
             box-shadow: none !important;
             background: transparent !important;
             outline: 0 !important;
+        }
+
+        .brand-logo-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: clamp(220px, 30vw, 340px);
+            margin: 0 auto .75rem;
+            pointer-events: none;
+        }
+
+        .brand-logo-wrap img {
+            width: clamp(210px, 28vw, 360px);
+            max-width: 72%;
+            height: auto;
+            display: block;
+            mix-blend-mode: screen;
+            filter: drop-shadow(0 0 32px rgba(125, 211, 252, .16))
+                    drop-shadow(0 0 58px rgba(167, 139, 250, .12));
         }
 
         hr {
@@ -487,6 +506,12 @@ def mat_download_button(label, data, file_name, mime, icon, **kwargs):
         if "icon" not in str(e):
             raise
         return st.download_button(label, data, file_name, mime, **kwargs)
+
+
+def image_data_uri(path):
+    """Konversi aset gambar lokal ke data URI untuk logo inline tanpa zona iframe."""
+    encoded = base64.b64encode(Path(path).read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def secret(k):
@@ -1028,7 +1053,14 @@ with st.sidebar:
         st.rerun()
 
 # ---------- Halaman utama ----------
-st.iframe(LIQUID_CENTERPIECE, height=340)
+st.markdown(
+    f"""
+    <div class="brand-logo-wrap" aria-label="Logo Ampera Scribe">
+        <img src="{image_data_uri(MAIN_LOGO)}" alt="Ampera Scribe">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 cta_cols = st.columns([1, 1.2, 1])
 with cta_cols[1]:
