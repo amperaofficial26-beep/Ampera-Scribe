@@ -134,7 +134,6 @@ def inject_glassliquid_theme():
         }
 
         [data-testid="stAppViewContainer"],
-        [data-testid="stSidebar"],
         [data-testid="stHeader"],
         [data-testid="stToolbar"],
         [data-testid="stDecoration"],
@@ -153,6 +152,7 @@ def inject_glassliquid_theme():
         [data-testid="stMainMenu"],
         [data-testid="stSidebarCollapsedControl"],
         [data-testid="collapsedControl"],
+        [data-testid="stSidebar"],
         #MainMenu,
         .stDeployButton {
             display: none !important;
@@ -197,9 +197,19 @@ def inject_glassliquid_theme():
             box-shadow: none !important;
         }
 
-        [data-testid="stSidebar"] {
-            height: 100vh !important;
-            overflow: hidden !important;
+        .st-key-left_settings_panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 21rem;
+            height: 100vh;
+            box-sizing: border-box;
+            z-index: 1001;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 4.25rem 1rem 2rem;
+            scrollbar-color: rgba(125,211,252,.42) transparent;
             background:
                 linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
                 rgba(4,4,8,.72) !important;
@@ -207,18 +217,6 @@ def inject_glassliquid_theme():
             box-shadow: 24px 0 70px rgba(0, 0, 0, .40), inset -1px 0 0 rgba(255,255,255,.06);
             backdrop-filter: blur(30px) saturate(1.35);
             -webkit-backdrop-filter: blur(30px) saturate(1.35);
-        }
-
-        [data-testid="stSidebar"] > div,
-        [data-testid="stSidebarContent"] {
-            height: 100vh !important;
-            max-height: 100vh !important;
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-            background: transparent !important;
-            padding-top: 4.25rem !important;
-            padding-bottom: 2rem !important;
-            scrollbar-color: rgba(125,211,252,.42) transparent;
         }
 
         .st-key-right_template_panel {
@@ -265,6 +263,17 @@ def inject_glassliquid_theme():
         }
 
         @media (max-width: 1199px) {
+            .st-key-left_settings_panel {
+                position: relative;
+                inset: auto;
+                width: auto;
+                max-height: none;
+                padding-top: 4.25rem;
+                margin-bottom: 1rem;
+                border-right: 1px solid var(--amp-border-soft);
+                border-radius: 24px;
+            }
+
             .st-key-right_template_panel {
                 position: relative;
                 inset: auto;
@@ -277,7 +286,8 @@ def inject_glassliquid_theme():
             }
         }
 
-        [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-left_settings_panel [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-left_settings_panel [data-testid="stExpander"],
         [data-testid="stExpander"] {
             border: 1px solid rgba(255,255,255,.12) !important;
             border-radius: 22px !important;
@@ -1031,7 +1041,7 @@ if not ss.left_sidebar_open:
     st.markdown(
         """
         <style>
-        [data-testid="stSidebar"] {
+        .st-key-left_settings_panel {
             display: none !important;
             visibility: hidden !important;
             pointer-events: none !important;
@@ -1135,24 +1145,34 @@ if ss.right_panel_open:
                 st.rerun()
 
         st.caption("Preview memakai struktur template dan data yang sedang diisi, tanpa memanggil AI.")
+# Sesuaikan lebar konten utama dengan panel yang sedang terbuka.
+_open_panels = int(ss.left_sidebar_open) + int(ss.right_panel_open)
+if _open_panels == 2:
+    _main_width_css = "calc(100vw - 44rem)"
+elif _open_panels == 1:
+    _main_width_css = "min(1120px, calc(100vw - 23rem))"
 else:
-    st.markdown("""
+    _main_width_css = "1120px"
+st.markdown(
+    f"""
     <style>
-    @media (min-width: 1200px) {
-        .block-container {
-            max-width: min(1120px, calc(100vw - 23rem)) !important;
-        }
-    }
+    @media (min-width: 1200px) {{
+        .block-container {{
+            max-width: {_main_width_css} !important;
+        }}
+    }}
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 # nilai template dipakai panel kiri dan halaman utama
 o = tpl.get("opsi", {})
 pakai_kop = tpl.get("kop", True)
 meta_mode = tpl.get("meta", "kiri")
 
-# ---------- Sidebar kiri: data & pengaturan ----------
-with st.sidebar:
+# ---------- Panel kiri: data & pengaturan ----------
+with st.container(key="left_settings_panel"):
     st.markdown("""
     <div class="section-heading">
         <span class="material-symbols-rounded">tune</span>
