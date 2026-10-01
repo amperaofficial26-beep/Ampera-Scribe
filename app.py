@@ -164,6 +164,8 @@ def inject_glassliquid_theme():
         }
 
         [data-testid="stSidebar"] {
+            height: 100vh !important;
+            overflow: hidden !important;
             background:
                 linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
                 rgba(4,4,8,.72) !important;
@@ -175,7 +177,13 @@ def inject_glassliquid_theme():
 
         [data-testid="stSidebar"] > div,
         [data-testid="stSidebarContent"] {
+            height: 100vh !important;
+            max-height: 100vh !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
             background: transparent !important;
+            padding-bottom: 2rem !important;
+            scrollbar-color: rgba(125,211,252,.42) transparent;
         }
 
         .st-key-right_template_panel {
@@ -184,9 +192,13 @@ def inject_glassliquid_theme():
             right: 0;
             bottom: 0;
             width: 21rem;
+            height: 100vh;
+            box-sizing: border-box;
             z-index: 1001;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 1.2rem 1rem 2rem;
+            scrollbar-color: rgba(125,211,252,.42) transparent;
             background:
                 linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
                 rgba(4,4,8,.72) !important;
@@ -973,6 +985,7 @@ ss.setdefault("doc", None)
 ss.setdefault("hasil", None)
 ss.setdefault("notice", None)
 ss.setdefault("page", "home")
+ss.setdefault("right_panel_open", True)
 ss.setdefault("form", {})
 
 inject_glassliquid_theme()
@@ -1000,39 +1013,75 @@ SLIP_DEFAULT = {
 }
 
 # ---------- Panel kanan: template ----------
-with st.container(key="right_template_panel"):
-    st.markdown("""
-    <div class="section-heading">
-        <span class="material-symbols-rounded">view_sidebar</span>
-        <div>
-            <strong>Template dokumen</strong>
-            <small>Pilih dan lihat contoh lengkap</small>
+jenis = ss.get("jenis", JENIS[0])
+if jenis not in JENIS:
+    jenis = JENIS[0]
+    ss["jenis"] = jenis
+
+daftar = TEMPLATES[jenis]
+nama_opsi = [t["nama"] for t in daftar]
+tpl_state_key = "tpl_" + jenis
+nama_tpl = ss.get(tpl_state_key, nama_opsi[0])
+if nama_tpl not in nama_opsi:
+    nama_tpl = nama_opsi[0]
+    ss[tpl_state_key] = nama_tpl
+tpl = next(t for t in daftar if t["nama"] == nama_tpl)
+tone = ss.get("tone", "Formal")
+if tone not in ["Formal", "Formal ramah", "Ringkas"]:
+    tone = "Formal"
+length = ss.get("length", "Sedang")
+if length not in ["Ringkas", "Sedang", "Panjang"]:
+    length = "Sedang"
+
+if ss.right_panel_open:
+    with st.container(key="right_template_panel"):
+        st.markdown("""
+        <div class="section-heading">
+            <span class="material-symbols-rounded">view_sidebar</span>
+            <div>
+                <strong>Template dokumen</strong>
+                <small>Pilih dan lihat contoh lengkap</small>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    with st.expander("01  Jenis & template", expanded=True):
-        jenis = st.selectbox("Jenis dokumen", JENIS, key="jenis")
-        daftar = TEMPLATES[jenis]
-        nama_tpl = st.selectbox(f"Template ({len(daftar)} contoh nyata)",
-                                [t["nama"] for t in daftar], key="tpl_" + jenis)
-        tpl = next(t for t in daftar if t["nama"] == nama_tpl)
-        st.caption(tpl["desc"])
-        tone = st.selectbox("Gaya bahasa", ["Formal", "Formal ramah", "Ringkas"])
-        length = st.selectbox("Panjang", ["Ringkas", "Sedang", "Panjang"], index=1)
-
-    if mat_button("Lihat template lengkap", ":material/visibility:",
-                  use_container_width=True, key="view_template_btn"):
-        ss.page = "template_preview"
-        st.rerun()
-
-    if ss.page == "template_preview":
-        if mat_button("Kembali ke generator", ":material/arrow_back:",
-                      use_container_width=True, key="back_from_template_panel"):
-            ss.page = "home"
+        if mat_button("Tutup panel kanan", ":material/close:",
+                      use_container_width=True, key="close_right_template_panel"):
+            ss.right_panel_open = False
             st.rerun()
 
-    st.caption("Preview memakai struktur template dan data yang sedang diisi, tanpa memanggil AI.")
+        with st.expander("01  Jenis & template", expanded=True):
+            jenis = st.selectbox("Jenis dokumen", JENIS, key="jenis")
+            daftar = TEMPLATES[jenis]
+            nama_tpl = st.selectbox(f"Template ({len(daftar)} contoh nyata)",
+                                    [t["nama"] for t in daftar], key="tpl_" + jenis)
+            tpl = next(t for t in daftar if t["nama"] == nama_tpl)
+            st.caption(tpl["desc"])
+            tone = st.selectbox("Gaya bahasa", ["Formal", "Formal ramah", "Ringkas"], key="tone")
+            length = st.selectbox("Panjang", ["Ringkas", "Sedang", "Panjang"], index=1, key="length")
+
+        if mat_button("Lihat template lengkap", ":material/visibility:",
+                      use_container_width=True, key="view_template_btn"):
+            ss.page = "template_preview"
+            st.rerun()
+
+        if ss.page == "template_preview":
+            if mat_button("Kembali ke generator", ":material/arrow_back:",
+                          use_container_width=True, key="back_from_template_panel"):
+                ss.page = "home"
+                st.rerun()
+
+        st.caption("Preview memakai struktur template dan data yang sedang diisi, tanpa memanggil AI.")
+else:
+    st.markdown("""
+    <style>
+    @media (min-width: 1200px) {
+        .block-container {
+            max-width: min(1120px, calc(100vw - 23rem)) !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # nilai template dipakai panel kiri dan halaman utama
 o = tpl.get("opsi", {})
@@ -1050,6 +1099,12 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    panel_label = "Tutup panel kanan" if ss.right_panel_open else "Buka panel kanan"
+    panel_icon = ":material/close:" if ss.right_panel_open else ":material/view_sidebar:"
+    if mat_button(panel_label, panel_icon, use_container_width=True, key="toggle_right_panel_sidebar"):
+        ss.right_panel_open = not ss.right_panel_open
+        st.rerun()
 
     with st.expander("01  Isi data", expanded=True):
         nilai = {}
