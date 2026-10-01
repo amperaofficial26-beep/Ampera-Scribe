@@ -151,6 +151,8 @@ def inject_glassliquid_theme():
         [data-testid="stHeaderActionElements"],
         [data-testid="stStatusWidget"],
         [data-testid="stMainMenu"],
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"],
         #MainMenu,
         .stDeployButton {
             display: none !important;
@@ -158,14 +160,18 @@ def inject_glassliquid_theme():
             pointer-events: none !important;
         }
 
+        .st-key-left_sidebar_top_toggle,
         .st-key-right_panel_top_toggle {
             position: fixed;
             top: .65rem;
-            right: .85rem;
             width: 13.5rem;
             z-index: 1004;
         }
 
+        .st-key-left_sidebar_top_toggle { left: .85rem; }
+        .st-key-right_panel_top_toggle { right: .85rem; }
+
+        .st-key-left_sidebar_top_toggle .stButton > button,
         .st-key-right_panel_top_toggle .stButton > button {
             min-height: 2.55rem;
             border-radius: 999px !important;
@@ -210,6 +216,7 @@ def inject_glassliquid_theme():
             overflow-y: auto !important;
             overflow-x: hidden !important;
             background: transparent !important;
+            padding-top: 4.25rem !important;
             padding-bottom: 2rem !important;
             scrollbar-color: rgba(125,211,252,.42) transparent;
         }
@@ -1015,9 +1022,24 @@ ss.setdefault("hasil", None)
 ss.setdefault("notice", None)
 ss.setdefault("page", "home")
 ss.setdefault("right_panel_open", True)
+ss.setdefault("left_sidebar_open", True)
 ss.setdefault("form", {})
 
 inject_glassliquid_theme()
+
+if not ss.left_sidebar_open:
+    st.markdown(
+        """
+        <style>
+        [data-testid="stSidebar"] {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 SLIP_DEFAULT = {
     "izin_ortu": ("# Surat Balasan Orang Tua/Wali\n\n"
@@ -1041,7 +1063,15 @@ SLIP_DEFAULT = {
                         "*) coret yang tidak perlu"),
 }
 
-# ---------- Tombol panel kanan di area toolbar custom ----------
+# ---------- Tombol sidebar & panel kanan di area toolbar custom ----------
+left_sidebar_label = "Tutup sidebar" if ss.left_sidebar_open else "Buka sidebar"
+left_sidebar_icon = ":material/close:" if ss.left_sidebar_open else ":material/view_sidebar:"
+with st.container(key="left_sidebar_top_toggle"):
+    if mat_button(left_sidebar_label, left_sidebar_icon,
+                  use_container_width=True, key="toggle_left_sidebar_top"):
+        ss.left_sidebar_open = not ss.left_sidebar_open
+        st.rerun()
+
 top_panel_label = "Tutup panel kanan" if ss.right_panel_open else "Buka panel kanan"
 top_panel_icon = ":material/close:" if ss.right_panel_open else ":material/view_sidebar:"
 with st.container(key="right_panel_top_toggle"):
