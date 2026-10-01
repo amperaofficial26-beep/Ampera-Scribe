@@ -143,8 +143,36 @@ def inject_glassliquid_theme():
             z-index: 1;
         }
 
-        [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+        [data-testid="stHeader"], [data-testid="stDecoration"] {
             background: transparent !important;
+        }
+
+        [data-testid="stToolbar"],
+        [data-testid="stHeaderActionElements"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stMainMenu"],
+        #MainMenu,
+        .stDeployButton {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
+        .st-key-right_panel_top_toggle {
+            position: fixed;
+            top: .65rem;
+            right: .85rem;
+            width: 13.5rem;
+            z-index: 1004;
+        }
+
+        .st-key-right_panel_top_toggle .stButton > button {
+            min-height: 2.55rem;
+            border-radius: 999px !important;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.055) 48%, rgba(255,255,255,.12)) !important;
+            backdrop-filter: blur(20px) saturate(1.45);
+            -webkit-backdrop-filter: blur(20px) saturate(1.45);
         }
 
         .block-container {
@@ -197,7 +225,7 @@ def inject_glassliquid_theme():
             z-index: 1001;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 1.2rem 1rem 2rem;
+            padding: 4.25rem 1rem 2rem;
             scrollbar-color: rgba(125,211,252,.42) transparent;
             background:
                 linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
@@ -235,6 +263,7 @@ def inject_glassliquid_theme():
                 inset: auto;
                 width: auto;
                 max-height: none;
+                padding-top: 4.25rem;
                 margin-bottom: 1rem;
                 border-left: 1px solid var(--amp-border-soft);
                 border-radius: 24px;
@@ -1012,6 +1041,15 @@ SLIP_DEFAULT = {
                         "*) coret yang tidak perlu"),
 }
 
+# ---------- Tombol panel kanan di area toolbar custom ----------
+top_panel_label = "Tutup panel kanan" if ss.right_panel_open else "Buka panel kanan"
+top_panel_icon = ":material/close:" if ss.right_panel_open else ":material/view_sidebar:"
+with st.container(key="right_panel_top_toggle"):
+    if mat_button(top_panel_label, top_panel_icon,
+                  use_container_width=True, key="toggle_right_panel_top"):
+        ss.right_panel_open = not ss.right_panel_open
+        st.rerun()
+
 # ---------- Panel kanan: template ----------
 jenis = ss.get("jenis", JENIS[0])
 if jenis not in JENIS:
@@ -1044,11 +1082,6 @@ if ss.right_panel_open:
             </div>
         </div>
         """, unsafe_allow_html=True)
-
-        if mat_button("Tutup panel kanan", ":material/close:",
-                      use_container_width=True, key="close_right_template_panel"):
-            ss.right_panel_open = False
-            st.rerun()
 
         with st.expander("01  Jenis & template", expanded=True):
             jenis = st.selectbox("Jenis dokumen", JENIS, key="jenis")
@@ -1099,12 +1132,6 @@ with st.sidebar:
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    panel_label = "Tutup panel kanan" if ss.right_panel_open else "Buka panel kanan"
-    panel_icon = ":material/close:" if ss.right_panel_open else ":material/view_sidebar:"
-    if mat_button(panel_label, panel_icon, use_container_width=True, key="toggle_right_panel_sidebar"):
-        ss.right_panel_open = not ss.right_panel_open
-        st.rerun()
 
     with st.expander("01  Isi data", expanded=True):
         nilai = {}
