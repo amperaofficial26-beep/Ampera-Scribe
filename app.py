@@ -178,6 +178,57 @@ def inject_glassliquid_theme():
             background: transparent !important;
         }
 
+        .st-key-right_template_panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 21rem;
+            z-index: 1001;
+            overflow-y: auto;
+            padding: 1.2rem 1rem 2rem;
+            background:
+                linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
+                rgba(4,4,8,.72) !important;
+            border-left: 1px solid var(--amp-border-soft);
+            box-shadow: -24px 0 70px rgba(0, 0, 0, .40), inset 1px 0 0 rgba(255,255,255,.06);
+            backdrop-filter: blur(30px) saturate(1.35);
+            -webkit-backdrop-filter: blur(30px) saturate(1.35);
+        }
+
+        .st-key-right_template_panel [data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-right_template_panel [data-testid="stExpander"] {
+            border: 1px solid rgba(255,255,255,.12) !important;
+            border-radius: 22px !important;
+            background: linear-gradient(145deg, rgba(255,255,255,.085), rgba(255,255,255,.028)) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 16px 45px rgba(0,0,0,.22);
+            overflow: hidden;
+        }
+
+        .st-key-right_template_panel .stButton > button {
+            margin-top: .25rem;
+        }
+
+        @media (min-width: 1200px) {
+            .block-container {
+                max-width: calc(100vw - 44rem) !important;
+                padding-right: 1.25rem !important;
+                padding-left: 1.25rem !important;
+            }
+        }
+
+        @media (max-width: 1199px) {
+            .st-key-right_template_panel {
+                position: relative;
+                inset: auto;
+                width: auto;
+                max-height: none;
+                margin-bottom: 1rem;
+                border-left: 1px solid var(--amp-border-soft);
+                border-radius: 24px;
+            }
+        }
+
         [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
         [data-testid="stExpander"] {
             border: 1px solid rgba(255,255,255,.12) !important;
@@ -871,11 +922,57 @@ def translate(doc, arah):
     return data, prov
 
 
+def template_preview_content(tpl, values):
+    """Buat isi contoh lengkap untuk preview template tanpa memanggil AI."""
+    sample = {}
+    for f in tpl.get("fields", []):
+        val = (values or {}).get(f["key"], "")
+        val = str(val or f.get("ph") or f"Contoh {f['label']}").strip()
+        sample[f["key"]] = val
+
+    baku = tpl.get("baku") or {}
+    pembuka = fill(baku.get("pembuka", ""), sample)
+    penutup = fill(baku.get("penutup", ""), sample)
+    if not pembuka:
+        pembuka = ("Dengan hormat, berdasarkan data dan kebutuhan yang tercantum "
+                   "pada template ini, berikut pratinjau susunan dokumen yang akan dibuat.")
+    if not penutup:
+        penutup = ("Demikian pratinjau template ini dibuat agar pengguna dapat melihat "
+                   "gambaran hasil akhir sebelum dokumen disusun.")
+
+    data_lines = []
+    for f in tpl.get("fields", []):
+        label = f.get("label", f["key"])
+        data_lines.append(f"{label}: {sample.get(f['key'], '...')}")
+
+    parts = []
+    if data_lines:
+        parts.append("# Data utama template\n" + "\n".join(data_lines))
+
+    outline = tpl.get("outline") or []
+    if outline:
+        parts.append("# Susunan bagian dokumen\n" +
+                     "\n".join(f"{i}. {section}" for i, section in enumerate(outline, 1)))
+
+    parts.append("# Contoh isi yang akan dikembangkan\n"
+                 "- Bagian ini akan disusun otomatis berdasarkan data yang diisi.\n"
+                 "- Kalimat baku template dipertahankan sesuai contoh surat.\n"
+                 "- Nama, nomor, tanggal, dan rincian lain mengikuti input pengguna.")
+
+    return {
+        "judul": tpl.get("judul", tpl.get("nama", "Template dokumen")),
+        "pembuka": pembuka,
+        "isi": "\n\n".join(parts),
+        "penutup": penutup,
+    }
+
+
 # ---------- Status ----------
 ss = st.session_state
 ss.setdefault("doc", None)
 ss.setdefault("hasil", None)
 ss.setdefault("notice", None)
+ss.setdefault("page", "home")
 ss.setdefault("form", {})
 
 inject_glassliquid_theme()
@@ -902,14 +999,14 @@ SLIP_DEFAULT = {
                         "*) coret yang tidak perlu"),
 }
 
-# ---------- Sidebar ----------
-with st.sidebar:
+# ---------- Panel kanan: template ----------
+with st.container(key="right_template_panel"):
     st.markdown("""
     <div class="section-heading">
-        <span class="material-symbols-rounded">tune</span>
+        <span class="material-symbols-rounded">view_sidebar</span>
         <div>
-            <strong>Pengaturan dokumen</strong>
-            <small>Liquid glass workspace</small>
+            <strong>Template dokumen</strong>
+            <small>Pilih dan lihat contoh lengkap</small>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -924,11 +1021,37 @@ with st.sidebar:
         tone = st.selectbox("Gaya bahasa", ["Formal", "Formal ramah", "Ringkas"])
         length = st.selectbox("Panjang", ["Ringkas", "Sedang", "Panjang"], index=1)
 
-    o = tpl.get("opsi", {})
-    pakai_kop = tpl.get("kop", True)
-    meta_mode = tpl.get("meta", "kiri")
+    if mat_button("Lihat template lengkap", ":material/visibility:",
+                  use_container_width=True, key="view_template_btn"):
+        ss.page = "template_preview"
+        st.rerun()
 
-    with st.expander("02  Isi data", expanded=True):
+    if ss.page == "template_preview":
+        if mat_button("Kembali ke generator", ":material/arrow_back:",
+                      use_container_width=True, key="back_from_template_panel"):
+            ss.page = "home"
+            st.rerun()
+
+    st.caption("Preview memakai struktur template dan data yang sedang diisi, tanpa memanggil AI.")
+
+# nilai template dipakai panel kiri dan halaman utama
+o = tpl.get("opsi", {})
+pakai_kop = tpl.get("kop", True)
+meta_mode = tpl.get("meta", "kiri")
+
+# ---------- Sidebar kiri: data & pengaturan ----------
+with st.sidebar:
+    st.markdown("""
+    <div class="section-heading">
+        <span class="material-symbols-rounded">tune</span>
+        <div>
+            <strong>Pengaturan dokumen</strong>
+            <small>Data, kop, dan tata letak</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("01  Isi data", expanded=True):
         nilai = {}
         for f in tpl["fields"]:
             key = f"fld_{tpl['id']}_{f['key']}"
@@ -944,7 +1067,7 @@ with st.sidebar:
         catatan = st.text_area("Catatan tambahan untuk AI", key="catatan_tpl", height=70,
                                placeholder="hal lain yang perlu ditulis...")
 
-    with st.expander("03  Kop, nomor & penerima", expanded=False):
+    with st.expander("02  Kop, nomor & penerima", expanded=False):
         kop = None
         if pakai_kop:
             kop = {
@@ -975,7 +1098,7 @@ with st.sidebar:
         if o.get("sk") or o.get("tentang"):
             tentang = st.text_input("Tentang", nilai.get("tentang", ""))
 
-    with st.expander("04  Tanda tangan & lampiran blok", expanded=False):
+    with st.expander("03  Tanda tangan & lampiran blok", expanded=False):
         n_ttd = st.number_input("Jumlah penandatangan", 1, 4, int(o.get("ttd", 1)))
         labels = o.get("ttd_label") or []
         ttds = []
@@ -1010,7 +1133,7 @@ with st.sidebar:
                                 SLIP_DEFAULT.get(slip_key, "") if slip_key else "",
                                 height=120)
 
-    with st.expander("05  Tata letak halaman", expanded=False):
+    with st.expander("04  Tata letak halaman", expanded=False):
         cfg = {
             "paper": st.selectbox("Ukuran kertas", list(PAPER)),
             "font": st.selectbox("Huruf", list(FONTS)),
@@ -1024,27 +1147,10 @@ with st.sidebar:
         }
 
     if mat_button("Reset dokumen", ":material/restart_alt:", use_container_width=True):
-        ss.doc, ss.hasil, ss.notice = None, None, None
+        ss.doc, ss.hasil, ss.notice, ss.page = None, None, None, "home"
         st.rerun()
 
-# ---------- Halaman utama ----------
-st.iframe(THINKING_ORB, height=300)
-
-cta_cols = st.columns([1, 1.2, 1])
-with cta_cols[1]:
-    buat = mat_button("Let's go, buat file nya", ":material/rocket_launch:",
-                      type="primary", use_container_width=True, key="main_generate")
-
-if ss.notice:
-    kind, text = ss.notice
-    if kind == "success":
-        st.success(text)
-    elif kind == "error":
-        st.error(text)
-    else:
-        st.info(text)
-
-
+# ---------- Rakit dokumen ----------
 def rakit(data):
     """Gabungkan hasil AI + pengaturan sidebar jadi satu dokumen siap render."""
     return {
@@ -1064,75 +1170,110 @@ def rakit(data):
     }
 
 
-if buat:
-    bahan = brief_from_fields(tpl, nilai)
-    tambahan = catatan.strip()
-    if tambahan:
-        bahan += "\nCatatan tambahan: " + tambahan
-    with st.spinner("Menyusun dokumen…"):
-        try:
-            data, prov = generate(jenis, bahan, tone, length, tpl, nilai)
-            ss.hasil = data
-            ss.doc = rakit(data)
-            ss.notice = ("success",
-                         f"{data.get('judul', tpl['judul'])} selesai disusun "
-                         f"(model: {prov}). Silakan lihat pratinjau dan unduh di bawah.")
-        except Exception as e:
-            ss.notice = ("error", f"Gagal: {e}")
-    st.rerun()
-
-# ---------- Hasil ----------
-if ss.doc:
-    doc = ss.doc
-    st.divider()
+# ---------- Halaman utama / preview template ----------
+if ss.page == "template_preview":
     st.markdown("""
     <div class="result-heading">
-        <span class="material-symbols-rounded">description</span>
-        <h2>Hasil dokumen</h2>
+        <span class="material-symbols-rounded">article</span>
+        <h2>Preview template lengkap</h2>
     </div>
     """, unsafe_allow_html=True)
+    st.caption(f"{jenis} · {tpl['nama']} · Preview ini memakai struktur template dan data yang sedang diisi.")
 
-    c1, c2 = st.columns([2, 1])
-    with c1:
-        arah = st.selectbox("Terjemahkan isi dokumen",
-                            ["(tidak diterjemahkan)"] + list(LANG))
-    with c2:
-        st.write("")
-        if mat_button("Terjemahkan", ":material/translate:", use_container_width=True,
-                      disabled=arah == "(tidak diterjemahkan)"):
-            with st.spinner("Menerjemahkan…"):
-                try:
-                    data, prov = translate(ss.hasil, arah)
-                    ss.hasil = data
-                    doc.update({k: data.get(k, doc.get(k, "")) for k in KEYS})
-                    ss.doc = doc
-                    st.success(f"Dokumen diterjemahkan ({arah}, model: {prov}).")
-                except Exception as e:
-                    st.error(f"Gagal menerjemahkan: {e}")
-
-    t1, t2 = st.tabs(["Pratinjau", "Edit teks"])
-    with t1:
-        st.components.v1.html(build_html(doc), height=1100, scrolling=True)
-    with t2:
-        doc["judul"] = st.text_input("Judul", doc["judul"])
-        doc["pembuka"] = st.text_area("Pembuka", doc["pembuka"], height=110)
-        doc["isi"] = st.text_area("Isi", doc["isi"], height=380)
-        doc["penutup"] = st.text_area("Penutup", doc["penutup"], height=110)
-        if mat_button("Simpan perubahan", ":material/save:"):
-            ss.doc = doc
+    back_cols = st.columns([1, 1.15, 1])
+    with back_cols[1]:
+        if mat_button("Kembali ke generator", ":material/arrow_back:",
+                      use_container_width=True, key="back_from_template_page"):
+            ss.page = "home"
             st.rerun()
 
-    nama_file = re.sub(r"[^\w\- ]+", "", doc["judul"] or "dokumen").strip().replace(" ", "_")
-    d1, d2 = st.columns(2)
-    with d1:
-        mat_download_button("Unduh Word (.docx)", build_docx(doc), f"{nama_file}.docx",
-                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            ":material/download:", use_container_width=True)
-    with d2:
-        mat_download_button("Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
-                            "application/pdf", ":material/download:", use_container_width=True)
+    preview_doc = rakit(template_preview_content(tpl, nilai))
+    st.iframe(build_html(preview_doc), height=1120)
 else:
-    st.info("Pilih **jenis** dan **template** di sidebar, isi datanya, lalu tekan "
-            "**Let's go, buat file nya**. Semua template disalin dari contoh surat "
-            "nyata, jadi kalimat bakunya sudah mengikuti aslinya — AI hanya mengisi "
-            "bagian variabel.")
+    st.iframe(THINKING_ORB, height=300)
+
+    cta_cols = st.columns([1, 1.2, 1])
+    with cta_cols[1]:
+        buat = mat_button("Let's go, buat file nya", ":material/rocket_launch:",
+                          type="primary", use_container_width=True, key="main_generate")
+
+    if ss.notice:
+        kind, text = ss.notice
+        if kind == "success":
+            st.success(text)
+        elif kind == "error":
+            st.error(text)
+        else:
+            st.info(text)
+
+    if buat:
+        bahan = brief_from_fields(tpl, nilai)
+        tambahan = catatan.strip()
+        if tambahan:
+            bahan += "\nCatatan tambahan: " + tambahan
+        with st.spinner("Menyusun dokumen…"):
+            try:
+                data, prov = generate(jenis, bahan, tone, length, tpl, nilai)
+                ss.hasil = data
+                ss.doc = rakit(data)
+                ss.notice = ("success",
+                             f"{data.get('judul', tpl['judul'])} selesai disusun "
+                             f"(model: {prov}). Silakan lihat pratinjau dan unduh di bawah.")
+            except Exception as e:
+                ss.notice = ("error", f"Gagal: {e}")
+        st.rerun()
+
+    # ---------- Hasil ----------
+    if ss.doc:
+        doc = ss.doc
+        st.divider()
+        st.markdown("""
+        <div class="result-heading">
+            <span class="material-symbols-rounded">description</span>
+            <h2>Hasil dokumen</h2>
+        </div>
+        """, unsafe_allow_html=True)
+
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            arah = st.selectbox("Terjemahkan isi dokumen",
+                                ["(tidak diterjemahkan)"] + list(LANG))
+        with c2:
+            st.write("")
+            if mat_button("Terjemahkan", ":material/translate:", use_container_width=True,
+                          disabled=arah == "(tidak diterjemahkan)"):
+                with st.spinner("Menerjemahkan…"):
+                    try:
+                        data, prov = translate(ss.hasil, arah)
+                        ss.hasil = data
+                        doc.update({k: data.get(k, doc.get(k, "")) for k in KEYS})
+                        ss.doc = doc
+                        st.success(f"Dokumen diterjemahkan ({arah}, model: {prov}).")
+                    except Exception as e:
+                        st.error(f"Gagal menerjemahkan: {e}")
+
+        t1, t2 = st.tabs(["Pratinjau", "Edit teks"])
+        with t1:
+            st.iframe(build_html(doc), height=1100)
+        with t2:
+            doc["judul"] = st.text_input("Judul", doc["judul"])
+            doc["pembuka"] = st.text_area("Pembuka", doc["pembuka"], height=110)
+            doc["isi"] = st.text_area("Isi", doc["isi"], height=380)
+            doc["penutup"] = st.text_area("Penutup", doc["penutup"], height=110)
+            if mat_button("Simpan perubahan", ":material/save:"):
+                ss.doc = doc
+                st.rerun()
+
+        nama_file = re.sub(r"[^\w\- ]+", "", doc["judul"] or "dokumen").strip().replace(" ", "_")
+        d1, d2 = st.columns(2)
+        with d1:
+            mat_download_button("Unduh Word (.docx)", build_docx(doc), f"{nama_file}.docx",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                ":material/download:", use_container_width=True)
+        with d2:
+            mat_download_button("Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
+                                "application/pdf", ":material/download:", use_container_width=True)
+    else:
+        st.info("Pilih **jenis** dan **template** di panel kanan, isi data di sidebar kiri, lalu tekan "
+                "**Let's go, buat file nya**. Gunakan tombol **Lihat template lengkap** "
+                "untuk melihat gambaran surat sebelum dibuat.")
