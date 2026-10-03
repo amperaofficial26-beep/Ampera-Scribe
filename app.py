@@ -83,7 +83,7 @@ hr{border-color:var(--line) !important}
 .material-symbols-rounded{""" + _MS + """display:inline-flex;align-items:center;justify-content:center;font-size:1.25rem}
 
 /* ===== Panel kiri & kanan (kartu melayang) ===== */
-.st-key-left_settings_panel,.st-key-right_template_panel{position:fixed;top:5.6rem;bottom:2.6rem;width:21.8rem;box-sizing:border-box;
+.st-key-left_settings_panel,.st-key-right_template_panel{position:fixed;top:5.6rem;bottom:2.6rem;width:18.5rem;box-sizing:border-box;
   z-index:1001;overflow-y:auto;overflow-x:hidden;padding:4.1rem 1rem 1.4rem;border-radius:28px;
   border:1px solid var(--line);background:linear-gradient(180deg,rgba(16,26,70,.78),rgba(8,14,40,.84)) !important;
   box-shadow:0 24px 70px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);
@@ -91,15 +91,15 @@ hr{border-color:var(--line) !important}
   scrollbar-width:thin;scrollbar-color:rgba(79,140,255,.55) transparent}
 .st-key-left_settings_panel{left:1.1rem}
 .st-key-right_template_panel{right:1.1rem}
-@media (min-width:1200px){.block-container{max-width:calc(100vw - 48rem) !important}}
+@media (min-width:1200px){.block-container{max-width:calc(100vw - 42rem) !important}}
 @media (max-width:1199px){
   .st-key-left_settings_panel,.st-key-right_template_panel{position:relative;inset:auto;width:auto;margin-bottom:1rem}
   .block-container{padding-top:6rem !important}}
 
 /* tombol tutup panel */
 .st-key-left_sidebar_top_toggle,.st-key-right_panel_top_toggle{position:fixed;top:6.25rem;z-index:1004}
-.st-key-left_sidebar_top_toggle{left:2.2rem;width:10.9rem}
-.st-key-right_panel_top_toggle{right:2.2rem;width:20.2rem}
+.st-key-left_sidebar_top_toggle{left:2.2rem;width:9.8rem}
+.st-key-right_panel_top_toggle{right:2.2rem;width:16.9rem}
 .st-key-left_sidebar_top_toggle button,.st-key-right_panel_top_toggle button{min-height:2.5rem !important;border-radius:999px !important;
   background:rgba(24,38,96,.70) !important;border:1px solid var(--line) !important;box-shadow:none !important;font-size:.9rem !important;font-weight:600 !important}
 .st-key-right_panel_top_toggle button{position:relative}
@@ -150,8 +150,8 @@ input::placeholder,textarea::placeholder{color:rgba(190,205,255,.40) !important}
 .st-key-main_generate button:hover{box-shadow:0 0 48px rgba(139,92,246,.50) !important}
 
 /* orb tengah */
-.amp-orb-wrap{display:flex;justify-content:center;align-items:center;height:21rem;margin-top:clamp(1rem,13vh,9rem)}
-.amp-orb{width:12.2rem;height:12.2rem;border-radius:50%;position:relative;animation:ampFloat 7s ease-in-out infinite;
+.amp-orb-wrap{display:flex;justify-content:center;align-items:center;height:11rem;margin-top:4rem}
+.amp-orb{width:8rem;height:8rem;border-radius:50%;position:relative;
   background:
     radial-gradient(circle at 30% 26%,#fff 0%,#cfe8ff 12%,rgba(120,180,255,.85) 32%,transparent 58%),
     radial-gradient(circle at 74% 58%,#ff6fae 0%,rgba(222,92,200,.85) 22%,transparent 52%),
@@ -160,15 +160,15 @@ input::placeholder,textarea::placeholder{color:rgba(190,205,255,.40) !important}
   box-shadow:0 0 50px rgba(100,140,255,.50),0 0 130px rgba(236,72,153,.28),inset -14px -18px 44px rgba(20,24,110,.65),inset 10px 10px 32px rgba(255,255,255,.30)}
 .amp-orb::after{content:"";position:absolute;inset:-14%;border-radius:50%;z-index:-1;background:radial-gradient(circle,rgba(110,140,255,.30),transparent 68%);filter:blur(18px)}
 @keyframes ampFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.025)}}
-@media (prefers-reduced-motion:reduce){.amp-orb,.stApp::before,.stApp::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.stApp::before,.stApp::after{animation:none}}
 
 /* kotak info */
-.amp-info{display:flex;align-items:center;gap:1.2rem;max-width:49rem;margin:1.1rem auto 0;padding:1.25rem 1.5rem;border-radius:18px;border:1.5px solid transparent;
+.amp-info{display:flex;align-items:center;gap:.9rem;max-width:36rem;margin:1rem auto 0;padding:.9rem 1.1rem;border-radius:18px;border:1.5px solid transparent;
   background:linear-gradient(rgba(14,22,66,.92),rgba(14,22,66,.92)) padding-box,linear-gradient(90deg,rgba(79,140,255,.75),rgba(168,85,247,.75)) border-box;
   box-shadow:0 18px 50px rgba(30,40,140,.25)}
-.amp-info-ic{width:3.1rem;height:3.1rem;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(79,110,255,.22)}
+.amp-info-ic{width:2.5rem;height:2.5rem;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(79,110,255,.22)}
 .amp-info-ic .ms{font-size:1.5rem;color:#a9c0ff}
-.amp-info p{margin:0;font-size:.95rem;line-height:1.65}
+.amp-info p{margin:0;font-size:.85rem;line-height:1.55}
 .amp-info b{color:#fff;font-weight:700}
 .amp-info b.hl{color:var(--cyan)}
 
@@ -835,9 +835,9 @@ if ss.right_panel_open:
 # Sesuaikan lebar konten utama dengan panel yang sedang terbuka.
 _open_panels = int(ss.left_sidebar_open) + int(ss.right_panel_open)
 if _open_panels == 2:
-    _main_width_css = "calc(100vw - 48rem)"
+    _main_width_css = "calc(100vw - 42rem)"
 elif _open_panels == 1:
-    _main_width_css = "min(1120px, calc(100vw - 24rem))"
+    _main_width_css = "min(1120px, calc(100vw - 21.5rem))"
 else:
     _main_width_css = "1120px"
 st.markdown(
