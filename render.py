@@ -11,6 +11,9 @@ Struktur data dokumen (dict `d`):
     ttds   : [{label, nama, jabatan, nip, img}]
     ttd_pos, kota_tgl, tutup_tgl (kota|ditetapkan)
     verifikasi, tembusan[], nb, registrasi, materai, saksi[], slip
+
+Kop surat: teks kop SELALU rata tengah pada seluruh lebar halaman. Logo (bila ada)
+diletakkan di sisi kiri tanpa menggeser teks kop.
 """
 import io, os, re, base64
 from PIL import Image as PILImage
@@ -38,6 +41,7 @@ ALIGN = {"Rata kiri-kanan": (TA_JUSTIFY, WA.JUSTIFY), "Rata kiri": (TA_LEFT, WA.
 POS = ["Kiri", "Tengah", "Kanan"]
 SIGN_W = 7.0
 MATERAI = "Materai\nRp 10.000"
+KOP_LOGO_W = 2.6   # cm: lebar lajur logo di kiri DAN lajur kosong di kanan (supaya teks tetap di tengah)
 
 
 # ---------------------------------------------------------------- teks Arab
@@ -159,6 +163,15 @@ def parse_table(txt):
     return rows
 
 
+def tujuan_lines(m):
+    """Baris alamat tujuan tanpa 'di Tempat' di ujungnya (renderer menambahkannya sendiri,
+    jadi tidak dobel kalau pengguna sudah mengetiknya)."""
+    lines = parse_list(m.get("tujuan"))
+    while lines and re.sub(r"[\s.,:;]+", " ", lines[-1]).strip().lower() == "di tempat":
+        lines.pop()
+    return lines
+
+
 def _heads(row, ncol, kota_line, total, materai):
     """Baris teks di atas ruang tanda tangan, disamakan tingginya antar kolom."""
     heads = []
@@ -207,6 +220,12 @@ def _borders(table):
     pr.append(borders)
 
 
+def _valign_center(cell):
+    tcPr = cell._tc.get_or_add_tcPr()
+    v = OxmlElement("w:vAlign"); v.set(qn("w:val"), "center")
+    tcPr.append(v)
+
+
 def build_docx(d):
     c, k = d["cfg"], d["kop"]
     doc = Document(); s = doc.sections[0]
@@ -252,19 +271,25 @@ def build_docx(d):
                 pp.add_run(txt)
         return t
 
-    # ---------- kop ----------
+    # ---------- kop (teks selalu di tengah; logo di kiri tanpa menggeser teks) ----------
     if k and (k["name"] or k["logo"]):
-        t = doc.add_table(rows=1, cols=2); t.autofit = False
-        c0, c1 = t.rows[0].cells
-        c0.width, c1.width = Cm(3), Cm(W - 3)
+        box = None
         if k["logo"]:
+            lw = KOP_LOGO_W
+            t = doc.add_table(rows=1, cols=3); t.autofit = False
+            c0, c1, c2 = t.rows[0].cells
+            c0.width, c1.width, c2.width = Cm(lw), Cm(W - 2 * lw), Cm(lw)
             c0.paragraphs[0].add_run().add_picture(io.BytesIO(k["logo"]), width=Cm(2.3))
-        first = c1.paragraphs[0]; first.alignment = WA.CENTER
+            for cell in (c0, c1, c2):
+                _valign_center(cell)
+            box = c1
+        first = box.paragraphs[0] if box is not None else doc.add_paragraph()
+        first.alignment = WA.CENTER
         first.paragraph_format.space_after = Pt(0)
         r = first.add_run(k["name"].upper()); r.bold = True; r.font.size = Pt(c["size"] + 4)
         for line in (k["addr"], k["contact"]):
             if line:
-                P(line, WA.CENTER, size=c["size"] - 1, after=0, container=c1)
+                P(line, WA.CENTER, size=c["size"] - 1, after=0, container=box)
         _hr(P(after=10), double=True)
 
     # ---------- header memo ----------
@@ -294,7 +319,7 @@ def build_docx(d):
             P("Kepada Yth.", after=0)
             if m.get("up"):
                 P("Up. " + m["up"], after=0)
-            for ln in parse_list(m["tujuan"]):
+            for ln in tujuan_lines(m):
                 P(ln, after=0)
             P("di Tempat")
     else:
@@ -520,6 +545,7 @@ def build_pdf(d):
         t.setStyle(TableStyle(NOPAD))
         return t
 
+    # ---------- kop (teks selalu di tengah; logo di kiri tanpa menggeser teks) ----------
     if k and (k["name"] or k["logo"]):
         txt = [Paragraph(esc(k["name"].upper()),
                          S("kn", fontName=bold, fontSize=c["size"] + 4, alignment=TA_CENTER,
@@ -529,9 +555,13 @@ def build_pdf(d):
                 txt.append(Paragraph(esc(line), S("kl", fontSize=c["size"] - 1,
                                                   alignment=TA_CENTER, spaceAfter=0)))
         if k["logo"]:
-            t = Table([[_img(k["logo"], 2.3), txt]], colWidths=[3 * cm, W - 3 * cm])
+            lw = KOP_LOGO_W * cm
+            logo = _img(k["logo"], 2.3)
+            logo.hAlign = "LEFT"
+            t = Table([[logo, txt, ""]], colWidths=[lw, W - 2 * lw, lw])
             t.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                                   ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
+                                   ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                   ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
             story.append(t)
         else:
             story += txt
@@ -564,7 +594,7 @@ def build_pdf(d):
             lines = ["Kepada Yth."]
             if m.get("up"):
                 lines.append("Up. " + m["up"])
-            lines += parse_list(m["tujuan"]) + ["di Tempat"]
+            lines += tujuan_lines(m) + ["di Tempat"]
             for ln in lines[:-1]:
                 story.append(Paragraph(esc(ln), S("y", spaceAfter=0)))
             story.append(Paragraph(esc(lines[-1]), body))
@@ -719,9 +749,11 @@ def build_html(d):
         return f'<table class="{cls}">{r}</table>'
 
     if k and (k["name"] or k["logo"]):
-        logo = f'<img src="{_b64(k["logo"])}" style="width:2.3cm">' if k["logo"] else ""
         sub = "".join(f'<div class="kl">{esc(x)}</div>' for x in (k["addr"], k["contact"]) if x)
-        o.append(f'<div class="kop"><div class="klogo">{logo}</div>'
+        logo = (f'<div class="klogo"><img src="{_b64(k["logo"])}" style="width:2.3cm"></div>'
+                if k["logo"] else "")
+        cls = "kop haslogo" if k["logo"] else "kop"
+        o.append(f'<div class="{cls}">{logo}'
                  f'<div class="ktxt"><div class="kn">{esc(k["name"].upper())}</div>'
                  f'{sub}</div></div><hr>')
 
@@ -745,7 +777,7 @@ def build_html(d):
             o.append(kvhtml(rows))
         if m.get("tujuan"):
             tj = ["Kepada Yth."] + (["Up. " + m["up"]] if m.get("up") else []) \
-                 + parse_list(m["tujuan"]) + ["di Tempat"]
+                 + tujuan_lines(m) + ["di Tempat"]
             o.append('<div class="tuj">' + "<br>".join(esc(x) for x in tj) + "</div>")
     else:
         u = "" if d.get("nomor_judul") else "underline"
@@ -844,9 +876,11 @@ box-sizing:border-box;margin:0 auto;box-shadow:0 2px 14px rgba(0,0,0,.25);border
 .paper p{{text-align:{just};margin:0 0 6pt;}}
 .paper hr{{border:0;border-top:1.6px solid #000;border-bottom:.6px solid #000;height:2px;
 margin:5px 0 12px;}}
-.paper .kop{{display:flex;align-items:center;gap:.4cm;}}
-.paper .klogo{{width:3cm;text-align:center;}}
-.paper .ktxt{{flex:1;text-align:center;}}
+.paper .kop{{position:relative;text-align:center;}}
+.paper .kop.haslogo{{display:flex;align-items:center;justify-content:center;
+padding:0 {KOP_LOGO_W}cm;min-height:2.4cm;box-sizing:border-box;}}
+.paper .klogo{{position:absolute;left:0;top:50%;transform:translateY(-50%);}}
+.paper .ktxt{{width:100%;text-align:center;}}
 .paper .kn{{font-weight:700;font-size:{c["size"] + 4}pt;}}
 .paper .kl{{font-size:{c["size"] - 1}pt;}}
 .paper .right{{text-align:right;margin-bottom:6pt;}}
