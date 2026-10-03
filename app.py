@@ -157,10 +157,14 @@ input::placeholder,textarea::placeholder{color:rgba(190,205,255,.40) !important}
     radial-gradient(circle at 74% 58%,#ff6fae 0%,rgba(222,92,200,.85) 22%,transparent 52%),
     radial-gradient(circle at 60% 85%,rgba(96,70,255,.9),transparent 55%),
     radial-gradient(circle at 50% 50%,#3a66ff 0%,#2a35b8 70%,#1a1f6e 100%);
-  box-shadow:0 0 50px rgba(100,140,255,.50),0 0 130px rgba(236,72,153,.28),inset -14px -18px 44px rgba(20,24,110,.65),inset 10px 10px 32px rgba(255,255,255,.30)}
-.amp-orb::after{content:"";position:absolute;inset:-14%;border-radius:50%;z-index:-1;background:radial-gradient(circle,rgba(110,140,255,.30),transparent 68%);filter:blur(18px)}
-@keyframes ampFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.025)}}
-@media (prefers-reduced-motion:reduce){.stApp::before,.stApp::after{animation:none}}
+  animation:ampGlow 16s ease-in-out infinite;
+  box-shadow:0 0 34px 4px rgba(79,140,255,.34),0 0 80px 14px rgba(79,140,255,.14),inset -10px -12px 30px rgba(20,24,110,.65),inset 7px 7px 22px rgba(255,255,255,.30)}
+@keyframes ampGlow{
+ 0%,100%{box-shadow:0 0 34px 4px rgba(79,140,255,.34),0 0 80px 14px rgba(79,140,255,.14),inset -10px -12px 30px rgba(20,24,110,.65),inset 7px 7px 22px rgba(255,255,255,.30)}
+ 25%{box-shadow:0 0 34px 4px rgba(34,211,238,.28),0 0 80px 14px rgba(34,211,238,.12),inset -10px -12px 30px rgba(20,24,110,.65),inset 7px 7px 22px rgba(255,255,255,.30)}
+ 50%{box-shadow:0 0 34px 4px rgba(139,92,246,.34),0 0 80px 14px rgba(139,92,246,.14),inset -10px -12px 30px rgba(20,24,110,.65),inset 7px 7px 22px rgba(255,255,255,.30)}
+ 75%{box-shadow:0 0 34px 4px rgba(244,114,182,.30),0 0 80px 14px rgba(244,114,182,.12),inset -10px -12px 30px rgba(20,24,110,.65),inset 7px 7px 22px rgba(255,255,255,.30)}}
+@media (prefers-reduced-motion:reduce){.amp-orb,.stApp::before,.stApp::after{animation:none}}
 
 /* kotak info */
 .amp-info{display:flex;align-items:center;gap:.9rem;max-width:36rem;margin:1rem auto 0;padding:.9rem 1.1rem;border-radius:18px;border:1.5px solid transparent;
@@ -258,6 +262,18 @@ def render_info_box():
         <b class="hl">Let's go, buat file nya</b>. Gunakan tombol <b>Lihat template lengkap</b>
         untuk melihat gambaran surat sebelum dibuat.</p></div>""",
         unsafe_allow_html=True)
+
+
+STAGE_CSS = """
+<style>
+@media (min-width:1200px){
+  .amp-orb-wrap{position:fixed !important;left:50%;top:10rem;transform:translateX(-50%);height:auto !important;margin:0 !important;z-index:2}
+  .st-key-main_generate{position:fixed !important;left:50%;top:20.5rem;transform:translateX(-50%);width:17rem !important;z-index:2}
+  .amp-info,.st-key-stage_notice{position:fixed !important;left:50%;top:26.5rem;transform:translateX(-50%);
+    width:min(36rem,calc(100vw - 46rem)) !important;margin:0 !important;z-index:2}
+}
+</style>
+"""
 
 
 def mat_button(label, icon, **kwargs):
@@ -1011,6 +1027,8 @@ if ss.page == "template_preview":
     preview_doc = rakit(template_preview_content(tpl, nilai))
     st.iframe(build_html(preview_doc), height=1120)
 else:
+    if not ss.doc:
+        st.markdown(STAGE_CSS, unsafe_allow_html=True)
     render_orb()
 
     cta_cols = st.columns([1, 1.2, 1])
@@ -1020,12 +1038,13 @@ else:
 
     if ss.notice:
         kind, text = ss.notice
-        if kind == "success":
-            st.success(text)
-        elif kind == "error":
-            st.error(text)
-        else:
-            st.info(text)
+        with st.container(key="stage_notice"):
+            if kind == "success":
+                st.success(text)
+            elif kind == "error":
+                st.error(text)
+            else:
+                st.info(text)
 
     if buat:
         bahan = brief_from_fields(tpl, nilai)
@@ -1094,5 +1113,5 @@ else:
         with d2:
             mat_download_button("Unduh PDF", build_pdf(doc), f"{nama_file}.pdf",
                                 "application/pdf", ":material/download:", use_container_width=True)
-    else:
+    elif not ss.notice:
         render_info_box()
